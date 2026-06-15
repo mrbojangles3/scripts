@@ -28,8 +28,7 @@ IUSE="+alternatives bzip2 doc ldap nls readline selinux +smartcard ssl test +tof
 RESTRICT="!test? ( test )"
 REQUIRED_USE="test? ( tofu )"
 
-# Existence of executables is checked during configuration.
-# Note: On each bump, update dep bounds on each version from configure.ac!
+# Existence of executables is checked during configuration
 DEPEND="
 	>=dev-libs/libassuan-3.0.0-r1:=
 	>=dev-libs/libgcrypt-1.11.0:=
@@ -71,6 +70,7 @@ DOCS=(
 
 PATCHES=(
 	"${FILESDIR}"/${PN}-2.1.20-gpgscm-Use-shorter-socket-path-lengts-to-improve-tes.patch
+	"${FILESDIR}"/0002-Fix-stub-functions-to-avoid-LTO-linking-bugs-followup.patch
 )
 
 src_prepare() {
@@ -103,10 +103,10 @@ src_prepare() {
 }
 
 my_src_configure() {
-	# Upstream don't support LTO, bug #854222.
-	filter-lto
-
 	local myconf=(
+		# --enable-selinux controls ENABLE_SELINUX_HACKS which
+		# prohibits import of secret keys, so doesn't seem desirable
+		# to have that forced on with USE=selinux.
 		$(use_enable bzip2)
 		$(use_enable nls)
 		$(use_enable smartcard scdaemon)
@@ -172,7 +172,7 @@ my_src_compile() {
 }
 
 my_src_test() {
-	export TESTFLAGS="--parallel=$(makeopts_jobs)"
+	export TESTFLAGS="--parallel=$(get_makeopts_jobs)"
 
 	default
 }
