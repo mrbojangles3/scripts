@@ -13,7 +13,7 @@ QEMU_DOCS_VERSION=$(ver_cut 1-2).0
 # bug #830088
 QEMU_DOC_USEFLAG="+doc"
 
-PYTHON_COMPAT=( python3_{12..13} )
+PYTHON_COMPAT=( python3_{12..14} )
 PYTHON_REQ_USE="ensurepip(-),ncurses,readline"
 
 inherit eapi9-ver flag-o-matic linux-info toolchain-funcs python-r1 udev fcaps \
@@ -36,15 +36,19 @@ if [[ ${PV} == *9999* ]]; then
 		SRC_URI+=" https://gitlab.com/qemu-project/${proj}/-/archive/${c}/${proj}-${c}.tar.bz2"
 	done
 else
+	inherit verify-sig
 	MY_P="${PN}-${PV/_rc/-rc}"
-	SRC_URI="https://download.qemu.org/${MY_P}.tar.xz"
+	SRC_URI="
+		https://download.qemu.org/${MY_P}.tar.xz
+		verify-sig? ( https://download.qemu.org/${MY_P}.tar.xz.sig )
+	"
 
 	if [[ ${QEMU_DOCS_PREBUILT} == 1 ]] ; then
 		SRC_URI+=" !doc? ( https://dev.gentoo.org/~${QEMU_DOCS_PREBUILT_DEV}/distfiles/${CATEGORY}/${PN}/${PN}-${QEMU_DOCS_VERSION}-docs.tar.xz )"
 	fi
 
 	S="${WORKDIR}/${MY_P}"
-	[[ "${PV}" != *_rc* ]] && KEYWORDS="amd64 ~arm arm64 ~loong ~ppc ppc64 ~riscv x86"
+	[[ "${PV}" != *_rc* ]] && KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~x86"
 fi
 
 DESCRIPTION="QEMU + Kernel-based Virtual Machine userland tools"
@@ -59,11 +63,11 @@ IUSE="accessibility +aio alsa bpf bzip2 capstone +curl debug ${QEMU_DOC_USEFLAG}
 	+fdt fuse glusterfs +gnutls gtk infiniband iscsi io-uring
 	jack jemalloc +jpeg keyutils
 	lzo multipath
-	ncurses nfs nls numa opengl +oss pam +pin-upstream-blobs pipewire
+	ncurses nfs nls numa opengl +oss pam passt +pin-upstream-blobs pipewire
 	plugins +png pulseaudio python rbd sasl +seccomp sdl sdl-image selinux
 	+slirp
 	smartcard snappy spice ssh static-user systemtap test udev usb
-	usbredir vde +vhost-net virgl virtfs +vnc vte wayland X xattr xdp xen
+	usbredir valgrind vde +vhost-net virgl virtfs +vnc vte wayland X xattr xdp xen
 	zstd"
 
 COMMON_TARGETS="
@@ -177,8 +181,8 @@ SOFTMMU_TOOLS_DEPEND="
 	fuse? ( >=sys-fs/fuse-3.1:3=[static-libs(+)] )
 	glusterfs? ( >=sys-cluster/glusterfs-3.4.0[static-libs(+)] )
 	gnutls? (
-		>=net-libs/gnutls-3.0:=[static-libs(+)]
-		dev-libs/nettle:=[static-libs(+)]
+		>=net-libs/gnutls-3.7.5:=[static-libs(+)]
+		>=dev-libs/nettle-3.7.3:=[static-libs(+)]
 	)
 	gtk? (
 		x11-libs/gtk+:3[wayland?,X?]
@@ -207,6 +211,7 @@ SOFTMMU_TOOLS_DEPEND="
 		media-libs/mesa[egl(+),gbm(+)]
 	)
 	pam? ( sys-libs/pam )
+	passt? ( net-misc/passt )
 	pipewire? ( >=media-video/pipewire-0.3.60 )
 	png? ( >=media-libs/libpng-1.6.34:=[static-libs(+)] )
 	pulseaudio? ( media-libs/libpulse )
@@ -258,7 +263,7 @@ SEABIOS_VERSION="1.16.3"
 
 X86_FIRMWARE_DEPEND="
 	pin-upstream-blobs? (
-		~sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}
+		~sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}[qemu_softmmu_targets_x86_64(+)]
 		~sys-firmware/ipxe-1.21.1_p20230601[binary,qemu]
 		~sys-firmware/seabios-bin-${SEABIOS_VERSION}
 		~sys-firmware/sgabios-0.1_pre10[binary]
@@ -266,7 +271,7 @@ X86_FIRMWARE_DEPEND="
 	!pin-upstream-blobs? (
 		|| (
 			>=sys-firmware/edk2-${EDK2_OVMF_VERSION}
-			>=sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}
+			>=sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}[qemu_softmmu_targets_x86_64(+)]
 		)
 		sys-firmware/ipxe[qemu]
 		|| (
@@ -308,6 +313,11 @@ BDEPEND="
 		dev-python/pycotap[${PYTHON_USEDEP}]
 	)
 "
+if [[ ${PV} != 9999 ]]; then
+	# https://www.qemu.org/download/
+	BDEPEND+=" verify-sig? ( sec-keys/openpgp-keys-mdroth )"
+	VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/mdroth.asc
+fi
 CDEPEND="
 	${ALL_DEPEND//\[static-libs(+)]}
 	${SOFTMMU_TOOLS_DEPEND//\[static-libs(+)]}
@@ -320,6 +330,7 @@ DEPEND="
 	${CDEPEND}
 	kernel_linux? ( >=sys-kernel/linux-headers-2.6.35 )
 	static-user? ( ${ALL_DEPEND} )
+	valgrind? ( dev-debug/valgrind )
 "
 RDEPEND="
 	${CDEPEND}
@@ -331,12 +342,12 @@ RDEPEND="
 "
 
 PATCHES=(
+	"${FILESDIR}"/${PN}-10.1.2-fix_passt.patch
 	"${FILESDIR}"/${PN}-9.0.0-disable-keymap.patch
 	"${FILESDIR}"/${PN}-9.2.0-capstone-include-path.patch
 	"${FILESDIR}"/${PN}-8.1.0-skip-tests.patch
 	"${FILESDIR}"/${PN}-8.1.0-find-sphinx.patch
-	"${FILESDIR}"/${PN}-7.2.16-optionrom-pass-Wl-no-error-rwx-segments.patch
-	"${FILESDIR}"/${PN}-10.0.5-hppa1.1.patch
+	"${FILESDIR}"/${PN}-10.2.2-optionrom-pass-Wl-no-error-rwx-segments.patch
 )
 
 QA_PREBUILT="
@@ -480,6 +491,7 @@ src_unpack() {
 		cd "${S}" || die
 		meson subprojects packagefiles --apply || die
 	else
+		use verify-sig && verify-sig_verify_detached "${DISTDIR}"/${MY_P}.tar.xz{,.sig}
 		default
 	fi
 }
@@ -572,6 +584,7 @@ qemu_src_configure() {
 		$(use_enable pulseaudio pa)
 		$(use_enable selinux)
 		$(use_enable xattr attr)
+		$(use_enable valgrind)
 	)
 
 	# Disable options not used by user targets. This simplifies building
@@ -634,6 +647,7 @@ qemu_src_configure() {
 		$(conf_notuser numa)
 		$(conf_notuser opengl)
 		$(conf_notuser pam auth-pam)
+		$(conf_notuser passt)
 		$(conf_notuser png)
 		$(conf_notuser rbd)
 		$(conf_notuser sasl vnc-sasl)
@@ -663,6 +677,10 @@ qemu_src_configure() {
 	)
 
 	if [[ ! ${buildtype} == "user" ]] ; then
+		# used by passt and spice, enable it because glib is required anyway
+		conf_opts+=(
+			--enable-gio
+		)
 		# audio options
 		local audio_opts=(
 			# Note: backend order matters here: #716202
@@ -896,6 +914,9 @@ src_install() {
 	pax-mark mr "${softmmu_bins[@]}" "${user_bins[@]}" # bug 575594
 	popd >/dev/null || die
 
+	# suid in src_install to allow FEATURES=suidctl to work properly
+	fperms u+s /usr/libexec/qemu-bridge-helper
+
 	# Install config file example for qemu-bridge-helper
 	insinto "/etc/qemu"
 	doins "${FILESDIR}/bridge.conf"
@@ -959,7 +980,7 @@ pkg_postinst() {
 	xdg_icon_cache_update
 
 	[[ -z ${EPREFIX} ]] && [[ -f ${EROOT}/usr/libexec/qemu-bridge-helper ]] && \
-		fcaps -m u+s cap_net_admin "${EROOT}"/usr/libexec/qemu-bridge-helper
+		fcaps -M u-s cap_net_admin "${EROOT}"/usr/libexec/qemu-bridge-helper
 
 	DISABLE_AUTOFORMATTING=true
 	readme.gentoo_print_elog
