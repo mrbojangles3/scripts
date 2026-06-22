@@ -82,10 +82,6 @@ sys-auth/libnss-mysql
 sys-auth/nss_ldap
 net-nds/nsscache
 
-# Sam James <sam@gentoo.org> (2024-09-30)
-# Needs porting to musl (bug #940130)
-~sys-auth/elogind-255.17
-
 # Sam James <sam@gentoo.org> (2024-08-31)
 # sys-devel/binutils[gprofng] is masked on musl
 dev-debug/gprofng-gui
@@ -428,6 +424,7 @@ www-client/microsoft-edge-dev
 www-client/opera
 www-client/opera-beta
 www-client/opera-developer
+www-client/opera-gx
 www-client/vivaldi
 www-client/vivaldi-snapshot
 www-plugins/chrome-binary-plugins

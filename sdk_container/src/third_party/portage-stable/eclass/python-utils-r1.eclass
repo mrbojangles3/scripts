@@ -39,9 +39,8 @@ inherit multiprocessing toolchain-funcs
 # @DESCRIPTION:
 # All supported Python implementations, most preferred last.
 _PYTHON_ALL_IMPLS=(
-	pypy3_11
-	python3_{13..14}t
-	python3_{11..14}
+	python3_{14..15}t
+	python3_{12..15}
 )
 readonly _PYTHON_ALL_IMPLS
 
@@ -51,9 +50,10 @@ readonly _PYTHON_ALL_IMPLS
 # All historical Python implementations that are no longer supported.
 _PYTHON_HISTORICAL_IMPLS=(
 	jython2_7
-	pypy pypy1_{8,9} pypy2_0 pypy3
+	pypy pypy1_{8,9} pypy2_0 pypy3 pypy3_11
 	python2_{5..7}
-	python3_{1..10}
+	python3_{1..11}
+	python3_13t
 )
 readonly _PYTHON_HISTORICAL_IMPLS
 
@@ -81,7 +81,7 @@ _python_verify_patterns() {
 	local impl pattern
 	for pattern; do
 		case ${pattern} in
-			-[23]|3.[89]|3.1[0-4])
+			-[23]|3.[89]|3.1[0-5])
 				continue
 				;;
 		esac
@@ -137,9 +137,16 @@ _python_set_impls() {
 			# please keep them in sync with _PYTHON_ALL_IMPLS
 			# and _PYTHON_HISTORICAL_IMPLS
 			case ${i} in
-				pypy3_11|python3_9|python3_1[1-4]|python3_1[3-4]t)
+				python3_1[2-5]|python3_1[4-5]t)
 					;;
-				jython2_7|pypy|pypy1_[89]|pypy2_0|pypy3|python2_[5-7]|python3_[1-9]|python3_10)
+				# implementations deprecated prior to EAPI 9 are fatal
+				jython2_7|pypy|pypy1_[89]|pypy2_0|pypy3|pypy3_11|python2_[5-7]|python3_[1-9]|python3_1[01]|python3_13t)
+					[[ ${EAPI} != [78] ]] &&
+						die "Please remove old implementations from PYTHON_COMPAT for EAPI ${EAPI}"
+					;&
+				# implementations deprecated after EAPI 9 are non-fatal
+				# (none yet, hence placeholder)
+				python3_x)
 					obsolete+=( "${i}" )
 					;;
 				*)
@@ -230,9 +237,17 @@ _python_impl_matches() {
 				fi
 				return 0
 				;;
-			3.[89]|3.1[0-4])
+			3.[89]|3.10)
+				[[ ${EAPI} != [78] ]] &&
+					die "Please remove old implementations from ${FUNCNAME[1]} in EAPI ${EAPI}"
+				;&
+			3.1[1-5])
 				[[ ${impl%t} == python${pattern/./_} || ${impl} == pypy${pattern/./_} ]] &&
 					return 0
+				;;
+			jython2_7|pypy|pypy1_[89]|pypy2_0|pypy3|python2_[5-7]|python3_[1-9]|python3_10)
+				[[ ${EAPI} != [78] ]] &&
+					die "Please remove old implementations from ${FUNCNAME[1]} in EAPI ${EAPI}"
 				;;
 			*)
 				# unify value style to allow lax matching
@@ -602,7 +617,7 @@ python_optimize() {
 	# default to sitedir
 	[[ ${#} -eq 0 ]] && set -- "${D}$(python_get_sitedir)"
 
-	local jobs=$(makeopts_jobs)
+	local jobs=$(get_makeopts_jobs)
 	local d
 	for d; do
 		einfo "Optimizing Python modules in ${d#${D}}"
@@ -1561,10 +1576,19 @@ epytest() {
 		args+=(
 			"--timeout=${EPYTEST_TIMEOUT}"
 		)
+
+		if [[ -n ${EPYTEST_RERUNS} ]]; then
+			# This option helps with hangs in some cases when these plugins are used together.
+			# https://github.com/pytest-dev/pytest-timeout/issues/18
+			# https://github.com/pytest-dev/pytest-rerunfailures/issues/99
+			args+=(
+				-o timeout_func_only=true
+			)
+		fi
 	fi
 
 	if [[ ${EPYTEST_XDIST} ]]; then
-		local jobs=${EPYTEST_JOBS:-$(makeopts_jobs)}
+		local jobs=${EPYTEST_JOBS:-$(get_makeopts_jobs)}
 		if [[ ${jobs} -gt 1 ]]; then
 			if [[ ${PYTEST_PLUGINS} != *xdist.plugin* ]]; then
 				args+=(
@@ -1579,6 +1603,18 @@ epytest() {
 				# jobs are unevenly distributed
 				--dist=worksteal
 			)
+
+			if [[ ${MAKEFLAGS} == *--jobserver-auth=* ]]; then
+				local usedep="python_targets_${EPYTHON/./_}(-)"
+				if has_version "dev-python/pytest-jobserver[${usedep}]"
+				then
+					args+=( -p jobserver )
+				elif [[ ! ${_EPYTEST_JOBSERVER_WARNED} ]]; then
+					ewarn "Jobserver found under pytest-xdist, but cannot be used without:"
+					ewarn "  dev-python/pytest-jobserver"
+					_EPYTEST_JOBSERVER_WARNED=1
+				fi
+			fi
 		fi
 	fi
 
