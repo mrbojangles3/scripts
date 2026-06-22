@@ -1,4 +1,4 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -15,7 +15,7 @@ S=${WORKDIR}/${MY_P}/src
 
 LICENSE="openafs-krb5-a BSD MIT OPENLDAP BSD-2 HPND BSD-4 ISC RSA CC-BY-SA-3.0 || ( BSD-2 GPL-2+ )"
 SLOT="0"
-KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
+KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~mips ppc ppc64 ~riscv ~s390 ~sparc x86"
 IUSE="cpu_flags_x86_aes doc +keyutils lmdb nls openldap +pkinit selinux test xinetd"
 
 RESTRICT="!test? ( test )"
@@ -28,7 +28,7 @@ DEPEND="
 		>=dev-libs/libverto-0.2.5[libevent,${MULTILIB_USEDEP}]
 	)
 	keyutils? ( >=sys-apps/keyutils-1.5.8:=[${MULTILIB_USEDEP}] )
-	lmdb? ( dev-db/lmdb:= )
+	lmdb? ( dev-db/lmdb:=[${MULTILIB_USEDEP}] )
 	nls? ( sys-devel/gettext[${MULTILIB_USEDEP}] )
 	openldap? ( >=net-nds/openldap-2.4.38-r1:=[${MULTILIB_USEDEP}] )
 	pkinit? ( >=dev-libs/openssl-1.0.1h-r2:0=[${MULTILIB_USEDEP}] )
@@ -52,6 +52,8 @@ PATCHES=(
 	"${FILESDIR}/${PN}-1.12_warn_cflags.patch"
 	"${FILESDIR}/${PN}_dont_create_rundir.patch"
 	"${FILESDIR}/${PN}-1.18.2-krb5-config.patch"
+	"${FILESDIR}/${PN}-1.22-openssl-4.patch"
+	"${FILESDIR}/${PN}-1.22-socket-too-long.patch"
 )
 
 MULTILIB_CHOST_TOOLS=(
@@ -71,6 +73,12 @@ src_configure() {
 	# lto-type-mismatch (bug #854225)
 	filter-lto
 
+	if tc-is-cross-compiler; then
+		# assume modern system
+		export krb5_cv_attr_constructor_destructor=y
+		export ac_cv_printf_positional=y
+	fi
+
 	multilib-minimal_src_configure
 }
 
@@ -82,6 +90,7 @@ multilib_src_configure() {
 		$(use_with openldap ldap) \
 		$(use_enable nls) \
 		$(use_enable pkinit) \
+		$(use_enable cpu_flags_x86_aes aesni) \
 		$(use_with lmdb) \
 		$(use_with keyutils) \
 		--without-hesiod \
