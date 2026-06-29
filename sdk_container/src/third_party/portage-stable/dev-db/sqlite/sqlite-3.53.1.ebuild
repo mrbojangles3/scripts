@@ -24,7 +24,7 @@ else
 	"
 	S="${WORKDIR}/${PN}-src-${SRC_PV}"
 
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
+	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~arm64-macos ~x64-macos ~x64-solaris"
 fi
 
 LICENSE="public-domain"
@@ -49,10 +49,6 @@ if [[ ${PV} == 9999 ]]; then
 else
 	BDEPEND+=" app-arch/unzip"
 fi
-
-PATCHES=(
-	"${FILESDIR}"/${PN}-3.53.2-hwtime.h-Don-t-use-rdtsc-on-i486.patch
-)
 
 _fossil_fetch() {
 	local distdir="${PORTAGE_ACTUAL_DISTDIR:-${DISTDIR}}"
@@ -337,7 +333,7 @@ multilib_src_compile() {
 	emake HAVE_TCL="$(usex tcl 1 0)" TCLLIBDIR="${EPREFIX}/usr/$(get_libdir)/${P}"
 
 	if use tools && multilib_is_native_abi; then
-		emake changeset dbdump dbhash dbtotxt index_usage rbu showdb showjournal showshm showstat4 showwal sqldiff sqlite3_analyzer sqlite3_expert sqltclsh
+		emake changeset dbdump dbhash dbtotxt index_usage rbu scrub showdb showjournal showshm showstat4 showwal sqldiff sqlite3_analyzer sqlite3_expert sqltclsh
 	fi
 
 	if [[ ${PV} == 9999 ]] && use doc && multilib_is_native_abi; then
@@ -405,6 +401,7 @@ multilib_src_install() {
 		install_tool dbtotxt sqlite3-db-to-txt
 		install_tool index_usage sqlite3-index-usage
 		install_tool rbu sqlite3-rbu
+		install_tool scrub sqlite3-scrub
 		install_tool showdb sqlite3-show-db
 		install_tool showjournal sqlite3-show-journal
 		install_tool showshm sqlite3-show-shm

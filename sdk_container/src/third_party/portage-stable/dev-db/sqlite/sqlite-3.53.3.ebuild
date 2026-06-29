@@ -51,8 +51,7 @@ else
 fi
 
 PATCHES=(
-	"${FILESDIR}"/${PN}-3.47.2-hwtime.h-Don-t-use-rdtsc-on-i486.patch
-	"${FILESDIR}"/${PN}-3.51.3-test.patch
+	"${FILESDIR}"/${PN}-3.53.2-hwtime.h-Don-t-use-rdtsc-on-i486.patch
 )
 
 _fossil_fetch() {
@@ -338,7 +337,7 @@ multilib_src_compile() {
 	emake HAVE_TCL="$(usex tcl 1 0)" TCLLIBDIR="${EPREFIX}/usr/$(get_libdir)/${P}"
 
 	if use tools && multilib_is_native_abi; then
-		emake changeset dbdump dbhash dbtotxt index_usage rbu scrub showdb showjournal showshm showstat4 showwal sqldiff sqlite3_analyzer sqlite3_checker sqlite3_expert sqltclsh
+		emake changeset dbdump dbhash dbtotxt index_usage rbu showdb showjournal showshm showstat4 showwal sqldiff sqlite3_analyzer sqlite3_expert sqltclsh
 	fi
 
 	if [[ ${PV} == 9999 ]] && use doc && multilib_is_native_abi; then
@@ -372,7 +371,11 @@ multilib_src_test() {
 	addpredict "/ÿ.db"
 
 	emake tclextension
-	emake -Onone $(usex test-full 'xdevtest' 'test')
+	if multilib_is_native_abi; then
+		emake -Onone $(usex test-full 'xdevtest' 'test')
+	else
+		emake  srctree-check fuzztest sourcetest $TESTPROGS testrunner
+	fi
 }
 
 multilib_src_install() {
@@ -402,7 +405,6 @@ multilib_src_install() {
 		install_tool dbtotxt sqlite3-db-to-txt
 		install_tool index_usage sqlite3-index-usage
 		install_tool rbu sqlite3-rbu
-		install_tool scrub sqlite3-scrub
 		install_tool showdb sqlite3-show-db
 		install_tool showjournal sqlite3-show-journal
 		install_tool showshm sqlite3-show-shm
@@ -410,7 +412,6 @@ multilib_src_install() {
 		install_tool showwal sqlite3-show-wal
 		install_tool sqldiff sqlite3-diff
 		install_tool sqlite3_analyzer sqlite3-analyzer
-		install_tool sqlite3_checker sqlite3-checker
 		install_tool sqlite3_expert sqlite3-expert
 		install_tool sqltclsh sqlite3-tclsh
 
