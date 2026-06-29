@@ -3,7 +3,7 @@
 
 EAPI=8
 
-GAWK_IS_BETA=no
+GAWK_IS_BETA=yes
 
 DESCRIPTION="GNU awk pattern-matching language"
 HOMEPAGE="https://www.gnu.org/software/gawk/gawk.html"
@@ -57,10 +57,6 @@ BDEPEND="
 if [[ ${GAWK_IS_BETA} != yes ]] ; then
 	BDEPEND+=" verify-sig? ( sec-keys/openpgp-keys-gawk )"
 fi
-
-PATCHES=(
-	"${FILESDIR}"/${P}-no-assertions-for-pma.patch
-)
 
 src_prepare() {
 	default
