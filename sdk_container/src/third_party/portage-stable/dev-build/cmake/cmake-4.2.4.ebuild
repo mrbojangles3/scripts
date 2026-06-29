@@ -53,7 +53,7 @@ else
 	)"
 
 	if [[ ${PV} != *_rc* ]] ; then
-		KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
+		KEYWORDS="~alpha amd64 ~arm arm64 ~hppa ~loong ~m68k ~mips ~ppc ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
 	fi
 
 	BDEPEND="verify-sig? ( >=sec-keys/openpgp-keys-bradking-20250904 )"
@@ -70,7 +70,7 @@ RESTRICT="!test? ( test )"
 
 # >= 1.51.0-r1 for ppc32 workaround (bug #941738)
 RDEPEND="
-	>=app-arch/libarchive-3.8.0:=
+	>=app-arch/libarchive-3.3.3:=
 	app-crypt/rhash:0=
 	>=dev-libs/expat-2.0.1
 	>=dev-libs/jsoncpp-1.9.2-r2:0=
