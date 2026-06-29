@@ -1,16 +1,16 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
 
 DISTUTILS_EXT=1
 DISTUTILS_USE_PEP517=setuptools
-PYTHON_FULLY_TESTED=( python3_{11..14} )
-PYTHON_TESTED=( "${PYTHON_FULLY_TESTED[@]}" pypy3_11 )
-PYTHON_COMPAT=( "${PYTHON_TESTED[@]}" python3_{13,14}t )
+PYTHON_FULLY_TESTED=( python3_{12..14} )
+PYTHON_TESTED=( "${PYTHON_FULLY_TESTED[@]}" )
+PYTHON_COMPAT=( "${PYTHON_TESTED[@]}" python3_15 python3_{13..15}t )
 PYTHON_REQ_USE="threads(+)"
 
-inherit distutils-r1 multiprocessing pypi toolchain-funcs
+inherit distutils-r1 flag-o-matic multiprocessing pypi toolchain-funcs
 
 DESCRIPTION="A Python to C compiler"
 HOMEPAGE="
@@ -21,7 +21,7 @@ HOMEPAGE="
 
 LICENSE="Apache-2.0"
 SLOT="0"
-KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~arm64-macos ~x64-macos ~x64-solaris"
+KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
 IUSE="test test-full"
 RESTRICT="!test? ( test )"
 
@@ -40,10 +40,17 @@ PATCHES=(
 	"${FILESDIR}/${PN}-0.29.23-pythran-parallel-install.patch"
 )
 
-distutils_enable_sphinx docs \
-	dev-python/jinja2 \
-	dev-python/sphinx-issues \
-	dev-python/sphinx-tabs
+# disabled to workaround pkgcheck performance issue
+# https://github.com/pkgcore/pkgcheck/issues/782
+#distutils_enable_sphinx docs \
+#	dev-python/jinja2 \
+#	dev-python/sphinx-issues \
+#	dev-python/sphinx-tabs
+
+python_configure_all() {
+	# https://gcc.gnu.org/PR125730 (bug #976797)
+	tc-is-gcc && [[ $(gcc-major-version) -ge 16 ]] && append-cflags -fno-ivopts
+}
 
 python_compile() {
 	# Python gets confused when it is in sys.path before build.
@@ -68,6 +75,10 @@ python_test() {
 
 	# Needed to avoid confusing cache tests
 	unset CYTHON_FORCE_REGEN
+
+	# uses $(nproc) to additionally parallelize many OpenMP-based jobs,
+	# leading to overcommitting
+	local -x OMP_NUM_THREADS=1
 
 	tc-export CC
 
@@ -97,17 +108,6 @@ python_test() {
 		# changes these tests s.t. they break with our build layout.
 		--exclude 'build.depfile*'
 	)
-
-	if [[ ${EPYTHON} == pypy3* ]] ; then
-		testargs+=(
-			# Recursion issue
-			--exclude 'run.if_else_expr'
-			--exclude 'run.test_patma*'
-			# Slight output difference (missing '<')
-			--exclude 'run.cpp_exception_ptr_just_handler'
-
-		)
-	fi
 
 	# Keep test-full for numpy as it's large and doesn't pass tests itself
 	# on niche arches.
