@@ -1,4 +1,4 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -6,11 +6,10 @@ EAPI=8
 inherit alternatives flag-o-matic toolchain-funcs multilib multiprocessing
 
 PATCH_VER=2
-CROSS_VER=1.6
-PATCH_BASE="perl-5.40.0-patches-${PATCH_VER}"
-PATCH_DEV=dilfridge
+CROSS_VER=1.6.4
+PATCH_BASE="perl-5.44.0-RC1-patches-${PATCH_VER}"
 
-DIST_AUTHOR=HAARG
+DIST_AUTHOR=LEONT
 
 # Greatest first, don't include yourself
 # Devel point-releases are not ABI-intercompatible, but stable point releases are
@@ -18,7 +17,7 @@ DIST_AUTHOR=HAARG
 PERL_BIN_OLDVERSEN=""
 
 if [[ "${PV##*.}" == "9999" ]]; then
-	DIST_VERSION=5.40.0
+	DIST_VERSION=5.45.0
 else
 	DIST_VERSION="${PV/_rc/-RC}"
 fi
@@ -44,7 +43,7 @@ HOMEPAGE="https://www.perl.org/"
 SRC_URI="
 	mirror://cpan/src/5.0/${MY_P}.tar.xz
 	mirror://cpan/authors/id/${DIST_AUTHOR:0:1}/${DIST_AUTHOR:0:2}/${DIST_AUTHOR}/${MY_P}.tar.xz
-	https://dev.gentoo.org/~${PATCH_DEV}/distfiles/${PATCH_BASE}.tar.xz
+	https://distfiles.gentoo.org/pub/proj/perl/${PATCH_BASE}.tar.xz
 	https://github.com/arsv/perl-cross/releases/download/${CROSS_VER}/perl-cross-${CROSS_VER}.tar.gz
 "
 
@@ -54,8 +53,8 @@ LICENSE="|| ( Artistic GPL-1+ )"
 
 SLOT="0/${SUBSLOT}"
 
-if [[ "${PV##*.}" != "9999" ]] && [[ "${PV/rc//}" == "${PV}" ]] ; then
-	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~arm64-macos ~x64-macos ~x64-solaris"
+if [[ "${PV##*.}" != "9999" ]] ; then
+	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
 fi
 
 IUSE="berkdb perl_features_debug doc gdbm perl_features_ithreads minimal perl_features_quadmath"
@@ -81,30 +80,25 @@ PDEPEND="
 	)
 "
 
-PATCHES=(
-	"${FILESDIR}/${P}-fix-compilation-in-eprefix-bug-939014.patch"
-	"${FILESDIR}/${PN}-5.40.0-alignment.patch"
-)
-
 # bug 390719, bug 523624
 # virtual/perl-Test-Harness is here for the bundled ExtUtils::MakeMaker
 
 dual_scripts() {
-	src_remove_dual      perl-core/Archive-Tar        3.20.10_rc    ptar ptardiff ptargrep
-	src_remove_dual      perl-core/CPAN               2.360.0       cpan
+	src_remove_dual      perl-core/Archive-Tar        3.120.0        ptar ptardiff ptargrep
+	src_remove_dual      perl-core/CPAN               2.380.0       cpan
 	src_remove_dual      perl-core/Digest-SHA         6.40.0        shasum
-	src_remove_dual      perl-core/Encode             3.210.0       enc2xs piconv
-	src_remove_dual      perl-core/ExtUtils-MakeMaker 7.700.0       instmodsh
-	src_remove_dual      perl-core/ExtUtils-ParseXS   3.510.0       xsubpp
-	src_remove_dual      perl-core/IO-Compress        2.212.0       zipdetails
+	src_remove_dual      perl-core/Encode             3.240.0       enc2xs piconv
+	src_remove_dual      perl-core/ExtUtils-MakeMaker 7.780.0       instmodsh
+	src_remove_dual      perl-core/ExtUtils-ParseXS   3.630.0       xsubpp
+	src_remove_dual      perl-core/IO-Compress        2.220.0       zipdetails
 	src_remove_dual      perl-core/JSON-PP            4.160.0       json_pp
-	src_remove_dual      perl-core/Module-CoreList    5.202.406.90  corelist
+	src_remove_dual      perl-core/Module-CoreList    5.202.606.10  corelist
 	src_remove_dual      perl-core/Pod-Checker        1.770.0       podchecker
 	src_remove_dual      perl-core/Pod-Perldoc        3.280.100     perldoc
-	src_remove_dual      perl-core/Pod-Usage          2.30.0        pod2usage
-	src_remove_dual      perl-core/Test-Harness       3.480.0       prove
-	src_remove_dual      perl-core/podlators          5.10.200_rc   pod2man pod2text
-	src_remove_dual_man  perl-core/podlators          5.10.200_rc   /usr/share/man/man1/perlpodstyle.1
+	src_remove_dual      perl-core/Pod-Usage          2.50.0        pod2usage
+	src_remove_dual      perl-core/Test-Harness       3.520.0       prove
+	src_remove_dual      perl-core/podlators          6.0.2         pod2man pod2text
+	src_remove_dual_man  perl-core/podlators          6.0.2         /usr/share/man/man1/perlpodstyle.1
 }
 
 check_rebuild() {
@@ -119,18 +113,12 @@ check_rebuild() {
 		[[ ${v%.*} == "${SHORT_PV}" ]] && continue
 		echo ""
 		ewarn "UPDATE THE PERL MODULES:"
-		ewarn "After updating dev-lang/perl the installed Perl modules"
+		ewarn "After updating dev-lang/perl to a new major version the installed Perl modules"
 		ewarn "have to be re-installed. In most cases, this is done automatically"
-		ewarn "by the package manager, but subsequent steps are still recommended"
-		ewarn "to ensure system consistency."
+		ewarn "by the package manager."
 		ewarn
-		ewarn "You should start with a depclean to remove any unused perl dependencies"
-		ewarn "that may confuse portage in future. Regular depcleans are also encouraged"
-		ewarn "as part of your regular update cycle, as that will keep perl upgrades working."
-		ewarn "Recommended: emerge --depclean -va"
-		ewarn
-		ewarn "You should then call perl-cleaner to clean up any old files and trigger any"
-		ewarn "remaining rebuilds portage may have missed."
+		ewarn "ONLY if you encounter problems, call perl-cleaner to clean up any old files"
+		ewarn "and trigger any remaining rebuilds portage may have missed."
 		ewarn "Use: perl-cleaner --all"
 		return 0
 	done
@@ -287,6 +275,10 @@ src_prepare_perlcross() {
 
 	# bug 794463, needs further analysis what is exactly wrong here
 	eapply "${FILESDIR}/perl-5.34.0-crossfit.patch"
+	# fix cross-compilation configure tests w/ lto
+	eapply "${FILESDIR}/perl-5.42.0-cross-no-lto.patch"
+	# https://github.com/arsv/perl-cross/pull/174
+	eapply "${FILESDIR}/perl-5.42.2-cross.patch"
 
 	# bug 604072
 	MAKEOPTS+=" -j1"
@@ -433,6 +425,12 @@ src_prepare() {
 	# add_patch "${FILESDIR}/${PN}-5.26.2-hppa.patch" "100-5.26.2-hppa.patch"\
 	#		"Fix broken miniperl on hppa"\
 	#		"https://bugs.debian.org/869122" "https://bugs.gentoo.org/634162"
+
+	# Backports from 5.42.0-votes.xml as of 2025-11-22
+	add_patch "${FILESDIR}/5.42.0/0004-Turn-off-POSIX-2008-locales-on-AIX.patch" \
+		"103-Turn-off-POSIX-2008-locales-on-AIX.patch" \
+		"Turn off POSIX 2008 locales on AIX" \
+		"https://github.com/Perl/perl5/issues/23825"
 
 	if [[ ${CHOST} == *-solaris* ]] ; then
 		# do NOT mess with nsl, on Solaris this is always necessary,
@@ -640,6 +638,11 @@ src_configure() {
 			HOSTCC=$(tc-getBUILD_CC) \
 			HOSTCFLAGS="${CFLAGS_FOR_BUILD} -D_GNU_SOURCE" \
 			HOSTLDFLAGS="${LDFLAGS_FOR_BUILD}"
+
+		# bug #977768
+		if tc-is-clang; then
+			export HOSTCFLAGS="${HOSTCFLAGS} -fno-strict-aliasing"
+		fi
 	fi
 
 	# bug #877659, bug #821577
@@ -752,6 +755,7 @@ src_configure() {
 		-Dlocincpth="${EPREFIX}"'/usr/include ' \
 		-Dglibpth="${EPREFIX}/$(get_libdir) ${EPREFIX}/usr/$(get_libdir)"' ' \
 		-Duselargefiles \
+		-Duse64bitint \
 		-Dd_semctl_semun \
 		-Dcf_by='Gentoo' \
 		-Dmyhostname='localhost' \

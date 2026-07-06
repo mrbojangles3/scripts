@@ -6,11 +6,11 @@ EAPI=8
 inherit alternatives flag-o-matic toolchain-funcs multilib multiprocessing
 
 PATCH_VER=1
-CROSS_VER=1.6.2
+CROSS_VER=1.6.4
 PATCH_BASE="perl-5.42.0-patches-${PATCH_VER}"
 PATCH_DEV=dilfridge
 
-DIST_AUTHOR=BOOK
+DIST_AUTHOR=SHAY
 
 # Greatest first, don't include yourself
 # Devel point-releases are not ABI-intercompatible, but stable point releases are
@@ -55,7 +55,7 @@ LICENSE="|| ( Artistic GPL-1+ )"
 SLOT="0/${SUBSLOT}"
 
 if [[ "${PV##*.}" != "9999" ]] && [[ "${PV/rc//}" == "${PV}" ]] ; then
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
+	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~arm64-macos ~x64-macos ~x64-solaris"
 fi
 
 IUSE="berkdb perl_features_debug doc gdbm perl_features_ithreads minimal perl_features_quadmath"
@@ -173,8 +173,7 @@ pkg_setup() {
 	case ${CHOST} in
 		*-darwin*)    osname="darwin" ;;
 		*-solaris*)   osname="solaris" ;;
-		*-linux*)     osname="linux" ;;
-		*-gnu)        osname="gnu" ;;
+		*)            osname="linux" ;;
 	esac
 
 	myarch="${CHOST%%-*}-${osname}"
@@ -277,8 +276,10 @@ src_prepare_perlcross() {
 
 	# bug 794463, needs further analysis what is exactly wrong here
 	eapply "${FILESDIR}/perl-5.34.0-crossfit.patch"
-	# bug 959686, rebase via upstream PR (no 5.42.0 release)
-	eapply "${FILESDIR}/perl-5.42.0-cross-rebase.patch"
+	# fix cross-compilation configure tests w/ lto
+	eapply "${FILESDIR}/perl-5.42.0-cross-no-lto.patch"
+	# https://github.com/arsv/perl-cross/pull/174
+	eapply "${FILESDIR}/perl-5.42.2-cross.patch"
 
 	# bug 604072
 	MAKEOPTS+=" -j1"
@@ -425,6 +426,12 @@ src_prepare() {
 	# add_patch "${FILESDIR}/${PN}-5.26.2-hppa.patch" "100-5.26.2-hppa.patch"\
 	#		"Fix broken miniperl on hppa"\
 	#		"https://bugs.debian.org/869122" "https://bugs.gentoo.org/634162"
+
+	# Backports from 5.42.0-votes.xml as of 2025-11-22
+	add_patch "${FILESDIR}/5.42.0/0004-Turn-off-POSIX-2008-locales-on-AIX.patch" \
+		"103-Turn-off-POSIX-2008-locales-on-AIX.patch" \
+		"Turn off POSIX 2008 locales on AIX" \
+		"https://github.com/Perl/perl5/issues/23825"
 
 	if [[ ${CHOST} == *-solaris* ]] ; then
 		# do NOT mess with nsl, on Solaris this is always necessary,
@@ -632,6 +639,11 @@ src_configure() {
 			HOSTCC=$(tc-getBUILD_CC) \
 			HOSTCFLAGS="${CFLAGS_FOR_BUILD} -D_GNU_SOURCE" \
 			HOSTLDFLAGS="${LDFLAGS_FOR_BUILD}"
+
+		# bug #977768
+		if tc-is-clang; then
+			export HOSTCFLAGS="${HOSTCFLAGS} -fno-strict-aliasing"
+		fi
 	fi
 
 	# bug #877659, bug #821577
