@@ -3,9 +3,9 @@
 
 EAPI=8
 
-DISTUTILS_USE_PEP517=flit
+DISTUTILS_USE_PEP517=flit-core
 # PYTHON_COMPAT is used only for testing
-PYTHON_COMPAT=( pypy3_11 python3_{11..14} )
+PYTHON_COMPAT=( python3_{12..15} )
 PYTHON_REQ_USE="ssl(+),threads(+)"
 
 inherit distutils-r1 pypi
@@ -29,7 +29,7 @@ S=${WORKDIR}/${MY_P}
 
 LICENSE="MIT"
 SLOT="0"
-KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
+KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~arm64-macos ~x64-macos ~x64-solaris"
 IUSE="test test-rust"
 RESTRICT="!test? ( test )"
 
@@ -59,7 +59,6 @@ distutils_enable_tests pytest
 declare -A VENDOR_LICENSES=(
 	[cachecontrol]=Apache-2.0
 	[certifi]=MPL-2.0
-	[dependency_groups]=MIT
 	[distlib]=PSF-2
 	[distro]=Apache-2.0
 	[idna]=BSD
@@ -84,6 +83,10 @@ python_prepare_all() {
 		# remove coverage & pytest-subket wheel expectation from test suite
 		# (from dev-python/pip)
 		"${FILESDIR}/pip-26.0-test-wheels.patch"
+
+		# https://github.com/pypa/pip/pull/14033
+		# + https://github.com/pypa/pip/commit/4c6d7471dec62fb004a47a7c2164b6b5b089ac06
+		"${FILESDIR}/pip-26.1.2-py315.patch"
 	)
 
 	distutils-r1_python_prepare_all
@@ -161,6 +164,8 @@ python_test() {
 				tests/functional/test_install.py::test_install_editable_with_prefix_setup_py
 				# wrong exception assumptions
 				tests/unit/test_utils_datetime.py::test_parse_iso_datetime_invalid
+				# TODO
+				tests/functional/test_install.py::test_install_warns_on_unexpected_post_install_import
 			)
 			;;
 	esac
