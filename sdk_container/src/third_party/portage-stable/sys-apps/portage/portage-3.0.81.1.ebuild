@@ -3,7 +3,7 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{12..14} )
+PYTHON_COMPAT=( python3_{12..15} )
 PYTHON_REQ_USE='bzip2(+),threads(+)'
 TMPFILES_OPTIONAL=1
 
@@ -91,10 +91,6 @@ PDEPEND="
 		>=sys-apps/file-5.44-r3
 	)
 "
-
-PATCHES=(
-	"${FILESDIR}"/0001-estrip-silence-noise-from-objcopy-if-build-ID-sectio.patch
-)
 
 pkg_pretend() {
 	local CONFIG_CHECK="~IPC_NS ~PID_NS ~NET_NS ~UTS_NS"
