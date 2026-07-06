@@ -36,8 +36,12 @@ if [[ ${PV} == *9999* ]]; then
 		SRC_URI+=" https://gitlab.com/qemu-project/${proj}/-/archive/${c}/${proj}-${c}.tar.bz2"
 	done
 else
+	inherit verify-sig
 	MY_P="${PN}-${PV/_rc/-rc}"
-	SRC_URI="https://download.qemu.org/${MY_P}.tar.xz"
+	SRC_URI="
+		https://download.qemu.org/${MY_P}.tar.xz
+		verify-sig? ( https://download.qemu.org/${MY_P}.tar.xz.sig )
+	"
 
 	if [[ ${QEMU_DOCS_PREBUILT} == 1 ]] ; then
 		SRC_URI+=" !doc? ( https://dev.gentoo.org/~${QEMU_DOCS_PREBUILT_DEV}/distfiles/${CATEGORY}/${PN}/${PN}-${QEMU_DOCS_VERSION}-docs.tar.xz )"
@@ -46,11 +50,6 @@ else
 	S="${WORKDIR}/${MY_P}"
 	[[ "${PV}" != *_rc* ]] && KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~x86"
 fi
-
-# this is still required to support glibc-2.42 in qemu-user, bug 961307
-# source: https://gitlab.com/qemu-project/qemu/-/issues/3065#note_2969046870
-#
-SRC_URI+=" https://dev.gentoo.org/~dilfridge/distfiles/qemu-10-termios2-patches.tar.xz"
 
 DESCRIPTION="QEMU + Kernel-based Virtual Machine userland tools"
 HOMEPAGE="https://www.qemu.org https://www.linux-kvm.org"
@@ -80,7 +79,6 @@ COMMON_TARGETS="
 	loongarch64
 	m68k
 	microblaze
-	microblazeel
 	mips
 	mips64
 	mips64el
@@ -110,6 +108,7 @@ IUSE_USER_TARGETS="
 	aarch64_be
 	armeb
 	hexagon
+	microblazeel
 	mipsn32
 	mipsn32el
 	ppc64le
@@ -264,7 +263,7 @@ SEABIOS_VERSION="1.16.3"
 
 X86_FIRMWARE_DEPEND="
 	pin-upstream-blobs? (
-		~sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}
+		~sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}[qemu_softmmu_targets_x86_64(+)]
 		~sys-firmware/ipxe-1.21.1_p20230601[binary,qemu]
 		~sys-firmware/seabios-bin-${SEABIOS_VERSION}
 		~sys-firmware/sgabios-0.1_pre10[binary]
@@ -272,7 +271,7 @@ X86_FIRMWARE_DEPEND="
 	!pin-upstream-blobs? (
 		|| (
 			>=sys-firmware/edk2-${EDK2_OVMF_VERSION}
-			>=sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}
+			>=sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}[qemu_softmmu_targets_x86_64(+)]
 		)
 		sys-firmware/ipxe[qemu]
 		|| (
@@ -314,6 +313,11 @@ BDEPEND="
 		dev-python/pycotap[${PYTHON_USEDEP}]
 	)
 "
+if [[ ${PV} != 9999 ]]; then
+	# https://www.qemu.org/download/
+	BDEPEND+=" verify-sig? ( sec-keys/openpgp-keys-mdroth )"
+	VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/mdroth.asc
+fi
 CDEPEND="
 	${ALL_DEPEND//\[static-libs(+)]}
 	${SOFTMMU_TOOLS_DEPEND//\[static-libs(+)]}
@@ -343,7 +347,7 @@ PATCHES=(
 	"${FILESDIR}"/${PN}-9.2.0-capstone-include-path.patch
 	"${FILESDIR}"/${PN}-8.1.0-skip-tests.patch
 	"${FILESDIR}"/${PN}-8.1.0-find-sphinx.patch
-	"${FILESDIR}"/${PN}-7.2.16-optionrom-pass-Wl-no-error-rwx-segments.patch
+	"${FILESDIR}"/${PN}-10.2.2-optionrom-pass-Wl-no-error-rwx-segments.patch
 )
 
 QA_PREBUILT="
@@ -487,6 +491,7 @@ src_unpack() {
 		cd "${S}" || die
 		meson subprojects packagefiles --apply || die
 	else
+		use verify-sig && verify-sig_verify_detached "${DISTDIR}"/${MY_P}.tar.xz{,.sig}
 		default
 	fi
 }
@@ -496,9 +501,6 @@ src_prepare() {
 	check_targets IUSE_USER_TARGETS linux-user
 
 	default
-
-	# this is still required to support glibc-2.42 in qemu-user
-	eapply "${WORKDIR}/termios2-patches"/*.patch
 
 	# Use correct toolchain to fix cross-compiling
 	tc-export AR AS LD NM OBJCOPY PKG_CONFIG RANLIB STRINGS
