@@ -1,10 +1,11 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
 
-DISTUTILS_USE_PEP517=flit
-PYTHON_COMPAT=( python3_{11..14} python3_{13,14}t pypy3_11 )
+DISTUTILS_USE_PEP517=flit-core
+PYPI_VERIFY_REPO=https://github.com/python/typing_extensions
+PYTHON_COMPAT=( python3_{12..15} python3_{14..15}t )
 
 inherit distutils-r1 pypi
 
@@ -16,7 +17,7 @@ HOMEPAGE="
 
 LICENSE="PSF-2"
 SLOT="0"
-KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~arm64-macos ~x64-macos ~x64-solaris"
+KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
 IUSE="test"
 RESTRICT="!test? ( test )"
 
@@ -27,9 +28,11 @@ BDEPEND="
 	)
 "
 
-distutils_enable_tests unittest
+# TODO: switch back to unittests once we don't need deselects
+EPYTEST_PLUGINS=()
+distutils_enable_tests pytest
 
 python_test() {
 	cd src || die
-	eunittest
+	epytest
 }
