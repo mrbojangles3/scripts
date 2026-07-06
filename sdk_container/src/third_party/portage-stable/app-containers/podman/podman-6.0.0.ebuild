@@ -3,7 +3,7 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{11..14} )
+PYTHON_COMPAT=( python3_{12..14} )
 
 inherit go-module python-any-r1 tmpfiles toolchain-funcs linux-info
 
@@ -30,9 +30,10 @@ RESTRICT="test"
 
 RDEPEND="
 	app-containers/catatonit
-	>=app-containers/conmon-2.1.10
-	>=app-containers/containers-common-0.58.0-r1
+	>=app-containers/conmon-2.2.1
+	>=app-containers/container-libs-0.68.0
 	app-crypt/gpgme:=
+	dev-db/sqlite:3
 	dev-libs/libassuan:=
 	dev-libs/libgpg-error:=
 	sys-apps/shadow:=
@@ -48,6 +49,7 @@ DEPEND="${RDEPEND}"
 BDEPEND="
 	${PYTHON_DEPS}
 	dev-go/go-md2man
+	>=dev-lang/go-1.25.6
 "
 
 PATCHES=(
