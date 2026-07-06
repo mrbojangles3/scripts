@@ -23,7 +23,7 @@ RDEPEND="
 "
 DEPEND="
 	${RDEPEND}
-	>=sys-kernel/linux-headers-6.11
+	>=sys-kernel/linux-headers-6.18
 "
 BDEPEND="nls? ( sys-devel/gettext )"
 RDEPEND+=" selinux? ( sec-policy/selinux-xfs )"
@@ -71,6 +71,8 @@ src_configure() {
 		# The default value causes double 'lib'
 		--localstatedir="${EPREFIX}/var"
 		--with-crond-dir="${EPREFIX}/etc/cron.d"
+		# TODO: Write equivalent OpenRC init scripts for installed systemd units
+		# Possibly document timer equivalents too for cron
 		--with-systemd-unit-dir="$(systemd_get_systemunitdir)"
 		--with-udev-rule-dir="$(get_udevdir)/rules.d"
 		$(use_enable icu libicu)
