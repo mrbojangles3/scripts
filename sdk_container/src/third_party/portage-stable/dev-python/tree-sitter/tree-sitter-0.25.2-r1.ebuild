@@ -1,4 +1,4 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -25,7 +25,10 @@ SLOT="0"
 KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~mips ppc ppc64 ~riscv ~s390 ~sparc x86"
 
 # setuptools is needed for distutils import
-DEPEND=">=dev-libs/tree-sitter-0.25.0:="
+DEPEND="
+	>=dev-libs/tree-sitter-0.25
+	<dev-libs/tree-sitter-0.27:=
+"
 RDEPEND="${DEPEND}
 	$(python_gen_cond_dep '
 		dev-python/setuptools[${PYTHON_USEDEP}]
@@ -45,19 +48,12 @@ distutils_enable_tests pytest
 
 PATCHES=(
 	"${FILESDIR}"/${PN}-0.22.2-unbundle.patch
+	"${FILESDIR}"/${PN}-0.25.2-remove-deprecated-functions.patch
 )
 
 src_unpack() {
 	default
 	rmdir "${S}/tree_sitter/core" || die
-}
-
-src_prepare() {
-	sed -e 's/ts_node_child_containing_descendant/ts_node_child_with_descendant/' \
-		-i tree_sitter/binding/node.c || die
-	sed -e 's/TSInputEncodingUTF16/TSInputEncodingUTF16LE/' \
-		-i tree_sitter/binding/parser.c || die
-	distutils-r1_src_prepare
 }
 
 src_test() {
