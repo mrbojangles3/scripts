@@ -1,9 +1,10 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
 
 [[ ${PV} == 9999* ]] || CRATES="${PN}@${PV}"
+RUST_MIN_VER="1.86.0"
 
 inherit cargo systemd
 
@@ -15,7 +16,7 @@ if [[ ${PV} == 9999* ]]; then
 	EGIT_REPO_URI="https://github.com/containers/netavark.git"
 else
 	SRC_URI="${CARGO_CRATE_URIS} https://github.com/containers/netavark/releases/download/v${PV}/${PN}-v${PV}-vendor.tar.gz"
-	KEYWORDS="amd64 arm64 ~loong ~ppc64 ~riscv"
+	KEYWORDS="~amd64 ~arm64 ~loong ~ppc64 ~riscv"
 fi
 
 # main
