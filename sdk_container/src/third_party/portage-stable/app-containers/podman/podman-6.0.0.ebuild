@@ -49,7 +49,7 @@ DEPEND="${RDEPEND}"
 BDEPEND="
 	${PYTHON_DEPS}
 	dev-go/go-md2man
-	>=dev-lang/go-1.25.7
+	>=dev-lang/go-1.25.6
 "
 
 PATCHES=(
@@ -105,12 +105,12 @@ src_compile() {
 		tc-export PKG_CONFIG
 	fi
 
-	emake BUILDFLAGS="-v -work -x" GOMD2MAN="go-md2man" EXTRA_BUILDTAGS="$(usev seccomp)" \
+	emake BUILDFLAGS="-v -work -x" GOMD2MAN="go-md2man" EXTRA_BUILDTAGS="$(usev seccomp)" SELINUXOPT= \
 		  all $(usev wrapper docker-docs)
 }
 
 src_install() {
-	emake DESTDIR="${D}" install install.completions $(usev wrapper install.docker-full)
+	emake DESTDIR="${D}" SELINUXOPT= install install.completions $(usev wrapper install.docker-full)
 
 	newconfd "${FILESDIR}"/podman-5.0.0_rc4.confd podman
 	newinitd "${FILESDIR}"/podman-5.0.0_rc4.initd podman
