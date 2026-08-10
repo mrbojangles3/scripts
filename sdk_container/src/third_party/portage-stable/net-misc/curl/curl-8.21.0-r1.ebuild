@@ -22,10 +22,11 @@ else
 		S="${WORKDIR}/${P//_/-}"
 	else
 		CURL_URI="https://curl.se/download/"
-		KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
+		KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~arm64-macos ~x64-macos ~x64-solaris"
 	fi
 	SRC_URI="
 		${CURL_URI}${P//_/-}.tar.xz
+		https://distfiles.gentoo.org/pub/dev/sam@gentoo.org/net-misc/curl/curl-8.21.0-hang.patch.xz
 		verify-sig? ( ${CURL_URI}${P//_/-}.tar.xz.asc )
 	"
 fi
@@ -64,7 +65,6 @@ REQUIRED_USE="
 			openssl
 			gnutls
 		)
-		!gnutls
 		!mbedtls
 		!rustls
 		http3
@@ -171,7 +171,13 @@ QA_CONFIG_IMPL_DECL_SKIP=(
 PATCHES=(
 	"${FILESDIR}/${PN}-prefix-6.patch"
 	"${FILESDIR}/${PN}-respect-cflags-3.patch"
+	"${WORKDIR}/${P}-hang.patch"
 )
+
+src_unpack() {
+	use verify-sig && verify-sig_verify_detached "${DISTDIR}"/${P}.tar.xz{,.asc}
+	default
+}
 
 src_prepare() {
 	default
@@ -280,6 +286,8 @@ multilib_src_configure() {
 		$(use_enable httpsrr)
 		$(use_with http2 nghttp2)
 		$(use_with http3 nghttp3)
+		# TODO: --enable-proxy-http3?
+		--disable-proxy-http3
 	)
 
 	# --enable/disable options
@@ -338,6 +346,7 @@ multilib_src_configure() {
 		--without-test-caddy
 		--without-test-httpd
 		--without-test-nghttpx
+		--without-test-h2o
 	)
 
 	if use debug; then
@@ -391,7 +400,6 @@ multilib_src_test() {
 	# -n: no valgrind (unreliable in sandbox and doesn't work correctly on all arches)
 	# -v: verbose
 	# -a: keep going on failure (so we see everything that breaks, not just 1st test)
-	# -k: keep test files after completion
 	# -am: automake style TAP output
 	# -p: print logs if test fails
 	# --retry: retry any failing tests up to 3 times; this is a band-aid for timing-dependent flakiness.
@@ -402,7 +410,7 @@ multilib_src_test() {
 	# this ends up breaking when nproc is huge (like -j80).
 	# The network sandbox causes tests 241 and 1083 to fail; these are typically skipped
 	# as most gentoo users don't have an 'ip6-localhost'
-	multilib_is_native_abi && emake test TFLAGS="-n -v -a -k -am -p -j$((2*$(get_makeopts_jobs))) --retry=3 !241 !1083"
+	multilib_is_native_abi && emake test TFLAGS="-n -v -a -am -p -j$((2*$(get_makeopts_jobs))) --retry=3 !241 !1083"
 	# TODO: enable python tests (make pytest).
 }
 
