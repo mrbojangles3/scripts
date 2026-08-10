@@ -36,15 +36,19 @@ if [[ ${PV} == *9999* ]]; then
 		SRC_URI+=" https://gitlab.com/qemu-project/${proj}/-/archive/${c}/${proj}-${c}.tar.bz2"
 	done
 else
+	inherit verify-sig
 	MY_P="${PN}-${PV/_rc/-rc}"
-	SRC_URI="https://download.qemu.org/${MY_P}.tar.xz"
+	SRC_URI="
+		https://download.qemu.org/${MY_P}.tar.xz
+		verify-sig? ( https://download.qemu.org/${MY_P}.tar.xz.sig )
+	"
 
 	if [[ ${QEMU_DOCS_PREBUILT} == 1 ]] ; then
 		SRC_URI+=" !doc? ( https://dev.gentoo.org/~${QEMU_DOCS_PREBUILT_DEV}/distfiles/${CATEGORY}/${PN}/${PN}-${QEMU_DOCS_VERSION}-docs.tar.xz )"
 	fi
 
 	S="${WORKDIR}/${MY_P}"
-	[[ "${PV}" != *_rc* ]] && KEYWORDS="amd64 ~arm arm64 ~loong ~ppc ppc64 ~riscv x86"
+	[[ "${PV}" != *_rc* ]] && KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~x86"
 fi
 
 DESCRIPTION="QEMU + Kernel-based Virtual Machine userland tools"
@@ -309,6 +313,11 @@ BDEPEND="
 		dev-python/pycotap[${PYTHON_USEDEP}]
 	)
 "
+if [[ ${PV} != 9999 ]]; then
+	# https://www.qemu.org/download/
+	BDEPEND+=" verify-sig? ( sec-keys/openpgp-keys-mdroth )"
+	VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/mdroth.asc
+fi
 CDEPEND="
 	${ALL_DEPEND//\[static-libs(+)]}
 	${SOFTMMU_TOOLS_DEPEND//\[static-libs(+)]}
@@ -482,6 +491,7 @@ src_unpack() {
 		cd "${S}" || die
 		meson subprojects packagefiles --apply || die
 	else
+		use verify-sig && verify-sig_verify_detached "${DISTDIR}"/${MY_P}.tar.xz{,.sig}
 		default
 	fi
 }
