@@ -1,4 +1,4 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -12,6 +12,7 @@ inherit gnome.org distutils-r1
 
 DESCRIPTION="GDBus code and documentation generator"
 HOMEPAGE="https://www.gtk.org/"
+SRC_URI+=" https://distfiles.gentoo.org/pub/dev/sam%40gentoo.org/dev-libs/glib/glib-2.88.2-const-whoops.patch.xz"
 
 S="${WORKDIR}/glib-${PV}/gio/gdbus-2.0/codegen"
 
@@ -31,6 +32,10 @@ BDEPEND="
 "
 
 python_prepare_all() {
+	cd "${WORKDIR}"/glib-${PV} || die
+	eapply "${WORKDIR}/glib-2.88.2-const-whoops.patch"
+	cd "${S}" || die
+
 	PATCHES=(
 		"${FILESDIR}/${PN}-2.56.1-sitedir.patch"
 	)

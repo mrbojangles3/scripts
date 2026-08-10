@@ -3,7 +3,7 @@
 
 EAPI=8
 GNOME_ORG_MODULE="glib"
-PYTHON_COMPAT=( python3_{11..14} )
+PYTHON_COMPAT=( python3_{12..15} )
 PYTHON_REQ_USE="xml(+)"
 DISTUTILS_USE_PEP517=setuptools
 DISTUTILS_SINGLE_IMPL=1
@@ -12,6 +12,7 @@ inherit gnome.org distutils-r1
 
 DESCRIPTION="GDBus code and documentation generator"
 HOMEPAGE="https://www.gtk.org/"
+SRC_URI+=" https://distfiles.gentoo.org/pub/dev/sam%40gentoo.org/dev-libs/glib/glib-2.88.2-const-whoops.patch.xz"
 
 S="${WORKDIR}/glib-${PV}/gio/gdbus-2.0/codegen"
 
