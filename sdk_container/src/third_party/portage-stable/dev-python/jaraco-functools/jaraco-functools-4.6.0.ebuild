@@ -4,9 +4,9 @@
 # please keep this ebuild at EAPI 8 -- sys-apps/portage dep
 EAPI=8
 
-DISTUTILS_USE_PEP517=flit
+DISTUTILS_USE_PEP517=flit-core
 PYPI_PN=${PN/-/.}
-PYTHON_COMPAT=( pypy3_11 python3_{11..15} python3_{13..15}t )
+PYTHON_COMPAT=( python3_{12..15} python3_{14..15}t )
 
 inherit distutils-r1 pypi
 
