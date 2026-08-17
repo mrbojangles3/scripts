@@ -1,9 +1,23 @@
 # Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
+# Nicolas PARLANT <nicolas.parlant@parhuet.fr> (2026-07-30)
+# dev-python/qtpy is not keyworded here
+media-libs/libffado gui
+
+# Pacho Ramos <pacho@gentoo.org> (2026-07-05)
+# QT6 is not keyworded here, bug #977775
+dev-libs/appstream test
+
+# Ionen Wolkens <ionen@gentoo.org> (2026-06-10)
+# llvm-core/clang is not available here, and neither is nvidia
+media-video/ffmpeg cuda-clang
+media-video/ffmpeg-compat cuda-clang
+
 # Pacho Ramos <pacho@gentoo.org> (2026-05-09)
-# appstream not keyworded
+# dev-libs/appstream not keyworded, bug #977775
 app-misc/media-player-info test
+dev-util/meld test
 
 # Alfred Wingate <parona@protonmail.com> (2026-05-03)
 # dev-libs/libthai not keyworded here
@@ -20,6 +34,7 @@ sys-fs/lvm2 vdo
 # Ionen Wolkens <ionen@gentoo.org> (2026-03-16)
 # media-libs/opencolorio is not keyworded here
 media-video/ffmpeg opencolorio
+media-video/ffmpeg-compat opencolorio
 
 # Sam James <sam@gentoo.org> (2026-02-11)
 # sys-libs/libnvme not keyworded here
@@ -80,10 +95,6 @@ media-libs/openal gui
 # NRK <nrk@disroot.org> (2025-04-07)
 # media-libs/libyuv is not keyworded
 media-libs/imlib2 y4m
-
-# Cristian Othón Martínez Vera <cfuga@cfuga.mx> (2025-04-09)
-# dev-db/tinycdb is not keyworded here
-mail-mta/sendmail tinycdb
 
 # NRK <nrk@disroot.org> (2025-03-17)
 # media-libs/libyuv is not keyworded
@@ -149,6 +160,7 @@ sci-visualization/gnuplot amos
 # Leonardo Hernández Hernández <leohdz172@proton.me> (2024-07-07)
 # media-libs/quirc and media-sound/liblc3 are not keyworded here
 media-video/ffmpeg quirc liblc3
+media-video/ffmpeg-compat quirc liblc3
 
 # matoro <matoro_gentoo@matoro.tk> (2024-07-03)
 # Requires dev-util/shelltestrunner
@@ -201,7 +213,7 @@ dev-perl/DBD-mysql mysql
 app-text/doxygen gui
 dev-build/cmake gui
 
-# Violet Purcell <vimproved@inventati.org> (2023-10-12)
+# Violet Purcell <vi@vimproved.dev> (2023-10-12)
 # dev-build/samurai is not keyworded here.
 app-alternatives/ninja samurai
 
@@ -302,6 +314,7 @@ media-libs/freetype svg
 # Adel Kara Slimane <adel.ks@zegrapher.com> (2022-03-14)
 # Untested useflag on other arches, needs keywording
 media-video/ffmpeg vmaf
+media-video/ffmpeg-compat vmaf
 
 # Sam James <sam@gentoo.org> (2022-01-29)
 # app-text/ronn-ng not keyworded here, bug #801103
