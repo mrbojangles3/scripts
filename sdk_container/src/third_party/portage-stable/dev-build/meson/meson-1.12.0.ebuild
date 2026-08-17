@@ -3,10 +3,10 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{11..14} pypy3_11 )
+PYTHON_COMPAT=( python3_{12..15} )
 DISTUTILS_USE_PEP517=setuptools
 
-inherit shell-completion edo distutils-r1 flag-o-matic toolchain-funcs
+inherit shell-completion edo distutils-r1 flag-o-matic toolchain-funcs vala
 
 if [[ ${PV} = *9999* ]]; then
 	EGIT_REPO_URI="https://github.com/mesonbuild/meson"
@@ -73,7 +73,7 @@ DEPEND="
 		|| ( dev-lang/rust dev-lang/rust-bin )
 		dev-lang/nasm
 		>=dev-lang/pypy-3
-		dev-lang/vala
+		$(vala_depend)
 		dev-python/cython
 		virtual/fortran
 		virtual/jdk
@@ -179,6 +179,9 @@ python_compile_all() {
 }
 
 src_test() {
+	# bug 513658
+	has_version -b dev-lang/vala && vala_setup
+
 	tc-export PKG_CONFIG
 	if ${PKG_CONFIG} --exists Qt5Core && ! ${PKG_CONFIG} --exists Qt5Gui; then
 		ewarn "Found Qt5Core but not Qt5Gui; skipping tests"
