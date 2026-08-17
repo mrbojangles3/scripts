@@ -38,12 +38,11 @@ RDEPEND="
 	nettle? ( dev-libs/nettle:=[${MULTILIB_USEDEP}] )
 	zstd? ( app-arch/zstd:=[${MULTILIB_USEDEP}] )
 "
-DEPEND="${RDEPEND}
+DEPEND="
+	${RDEPEND}
+	virtual/os-headers
 	elibc_musl? ( sys-libs/queue-standalone )
-	kernel_linux? (
-		virtual/os-headers
-		e2fsprogs? ( sys-fs/e2fsprogs[${MULTILIB_USEDEP}] )
-	)
+	e2fsprogs? ( sys-fs/e2fsprogs[${MULTILIB_USEDEP}] )
 	test? (
 		app-arch/lrzip
 		app-arch/lz4
@@ -71,7 +70,7 @@ QA_CONFIG_IMPL_DECL_SKIP=(
 PATCHES=(
 	# https://github.com/libarchive/libarchive/issues/2069
 	# (we can simply update the command since we don't support old lrzip)
-	"${FILESDIR}/${PN}-3.7.2-lrzip.patch"
+	"${FILESDIR}/${PN}-3.8.9-lrzip.patch"
 )
 
 src_prepare() {
