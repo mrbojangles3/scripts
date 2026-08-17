@@ -1,4 +1,4 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -32,7 +32,9 @@ fi
 
 S="${WORKDIR}/${MY_P}"
 
-LICENSE="GPL-2 GPL-3 LGPL-2.1 BSD-4 MIT public-domain"
+# GPL-2+ first per README.licensing ("default license"), then the rest
+# are in order as listed in that file.
+LICENSE="GPL-2+ GPL-1+ GPL-2 GPL-2+ GPL-3+ LGPL-2.1+ MIT BSD-2 BSD BSD-4 EUPL-1.2 public-domain"
 SLOT="0"
 IUSE="audit build caps +cramfs cryptsetup fdformat +hardlink kill +logger magic ncurses nls pam python +readline rtas selinux slang static-libs +su +suid systemd test tty-helpers udev unicode uuidd"
 
@@ -87,6 +89,7 @@ RDEPEND+="
 	)
 	uuidd? (
 		acct-user/uuidd
+		selinux? ( sec-policy/selinux-uuidd )
 		systemd? ( virtual/tmpfiles )
 	)
 	!net-wireless/rfkill
@@ -102,6 +105,10 @@ fi
 REQUIRED_USE="python? ( ${PYTHON_REQUIRED_USE} ) su? ( pam )"
 RESTRICT="!test? ( test )"
 
+PATCHES=(
+	"${FILESDIR}"/${PN}-2.41.4-no-AF_ALG.patch
+)
+
 pkg_pretend() {
 	if use su && ! use suid ; then
 		elog "su will be installed as suid despite USE=-suid (bug #832092)"
@@ -115,12 +122,9 @@ src_unpack() {
 		return
 	fi
 
-	# Upstream sign the decompressed .tar
 	if use verify-sig; then
-		einfo "Unpacking ${MY_P}.tar.xz ..."
-		verify-sig_verify_detached - "${DISTDIR}"/${MY_P}.tar.sign \
-			< <(xz -cd "${DISTDIR}"/${MY_P}.tar.xz | tee >(tar -xf -))
-		assert "Unpack failed"
+		verify-sig_uncompress_verify_unpack "${DISTDIR}"/${MY_P}.tar.xz \
+			"${DISTDIR}"/${MY_P}.tar.sign
 	else
 		default
 	fi
@@ -158,6 +162,15 @@ src_prepare() {
 
 			# Hangs on some machines
 			script/replay
+
+			# Fails for 32-bit time_t which some profiles have
+			misc/time_t
+
+			# Permission issues with changing OOM score
+			choom/choom
+
+			# MKFDS_PID is empty
+			lsfd/option-hyperlink
 		)
 
 		# debug prints confuse the tests which look for a diff
@@ -343,6 +356,26 @@ multilib_src_configure() {
 			$(use_enable uuidd libuuid-force-uuidd)
 		)
 	fi
+
+	if use kernel_Hurd ; then
+		# Disable Linux-specific features
+		myeconfargs+=(
+			--disable-partx
+			--disable-rfkill
+			--disable-schedutils
+			--disable-fsck
+		)
+
+		# This is explicitly needed for some reason? TODO
+		myeconfargs+=(
+			--enable-agetty
+		)
+	fi
+
+	# https://savannah.gnu.org/support/?111394
+	# This can be removed when we patch dev-build/autoconf, though
+	# packages w/o eautoreconf will still need it.
+	[[ ${enable_year2038} == "no" ]] && myeconfargs+=( --disable-year2038 )
 
 	ECONF_SOURCE="${S}" econf "${myeconfargs[@]}"
 
