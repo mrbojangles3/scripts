@@ -38,7 +38,7 @@ dev-lang/python jit
 # USE=bpf depends on llvm-core/clang which is not keyworded on m68k
 media-libs/libv4l bpf
 
-# Violet Purcell <vimproved@inventati.org> (2023-10-12)
+# Violet Purcell <vi@vimproved.dev> (2023-10-12)
 # dev-build/samurai is not keyworded here.
 app-alternatives/ninja samurai
 
@@ -59,6 +59,7 @@ sys-apps/systemd xkb
 # Adel Kara Slimane <adel.ks@zegrapher.com> (2022-03-14)
 # Untested useflag on other arches, needs keywording
 media-video/ffmpeg vmaf
+media-video/ffmpeg-compat vmaf
 
 # James Le Cuirot <chewi@gentoo.org> (2022-01-09)
 # Most usage of KMS requires GBM, which is provided by Mesa, which currently
