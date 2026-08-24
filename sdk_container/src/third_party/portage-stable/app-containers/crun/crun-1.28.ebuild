@@ -3,9 +3,9 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{11..14} )
+PYTHON_COMPAT=( python3_{12..14} )
 
-inherit autotools libtool python-any-r1
+inherit autotools libtool python-any-r1 flag-o-matic toolchain-funcs
 
 DESCRIPTION="Fast and low-memory footprint OCI Container Runtime fully written in C"
 HOMEPAGE="https://github.com/containers/crun"
@@ -23,15 +23,15 @@ SLOT="0"
 IUSE="+bpf +caps criu +seccomp selinux systemd static-libs"
 
 DEPEND="
-	dev-libs/yajl:=
+	dev-libs/json-c:=
 	sys-kernel/linux-headers
 	caps? ( sys-libs/libcap )
 	criu? ( >=sys-process/criu-3.15 )
+	elibc_musl? ( sys-libs/error-standalone )
 	seccomp? ( sys-libs/libseccomp )
 	systemd? ( sys-apps/systemd:= )
 "
-RDEPEND="
-	${DEPEND}
+RDEPEND="${DEPEND}
 	selinux? ( sec-policy/selinux-container )
 "
 BDEPEND="
@@ -39,21 +39,21 @@ BDEPEND="
 	virtual/pkgconfig
 "
 
+PATCHES=(
+	"${FILESDIR}"/${P}-export-json_gen.patch
+)
+
 src_prepare() {
 	default
 	elibtoolize
-
-	# https://github.com/containers/crun/pull/1887
-	sed -i -E '/AC_CHECK_HEADERS\(\[error.h/{
-		s/error\.h[[:space:]]*//g
-		a\
-		AC_CHECK_HEADER([error.h], [AC_CHECK_FUNC([error], AC_DEFINE([HAVE_ERROR_H], [1], [Define if error.h is usable]))])
-	}' configure.ac || die
-
 	eautoreconf
 }
 
 src_configure() {
+	if use elibc_musl ; then
+		append-cflags "$($(tc-getPKG_CONFIG) --cflags error-standalone)"
+		append-libs "$($(tc-getPKG_CONFIG) --libs error-standalone)"
+	fi
 	local myeconfargs=(
 		--cache-file="${S}"/config.cache
 		$(use_enable bpf)
