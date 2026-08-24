@@ -39,7 +39,6 @@ move dev-python/Opcodes dev-python/opcodes
 move dev-python/OutputCheck dev-python/outputcheck
 move dev-python/PeachPy dev-python/peachpy
 move dev-python/requests_download dev-python/requests-download
-move dev-python/sphinx_selective_exclude dev-python/sphinx-selective-exclude
 move dev-python/txAMQP dev-python/txamqp
 move dev-python/textX dev-python/textx
 move dev-python/pyClamd dev-python/pyclamd
@@ -56,7 +55,7 @@ move dev-python/PyQt6-WebEngine dev-python/pyqt6-webengine
 move dev-python/PyQt6-sip dev-python/pyqt6-sip
 move dev-python/PyQt6 dev-python/pyqt6
 move sys-libs/llvm-offload llvm-runtimes/offload
-move dev-libs/libclc llvm-core/libclc
+move dev-libs/libclc llvm-runtimes/libclc
 move sys-libs/llvm-libunwind llvm-runtimes/libunwind
 move sys-libs/libomp llvm-runtimes/openmp
 move sys-libs/libcxxabi llvm-runtimes/libcxxabi
