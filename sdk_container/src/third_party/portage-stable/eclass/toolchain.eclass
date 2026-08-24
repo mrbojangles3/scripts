@@ -1115,6 +1115,7 @@ toolchain_setup_ada() {
 	! tc-is-cross-compiler && _toolchain_make_gnat_wrappers
 
 	export CC="$(tc-getCC) -specs=${T}/ada.spec"
+	export CXX="$(tc-getCXX) -specs=${T}/ada.spec"
 
 	if ver_test ${PV} -lt 13 && [[ ${CTARGET#accel-} == hppa* ]] ; then
 		# For HPPA, the ada-bootstrap binaries seem to default
@@ -1154,6 +1155,8 @@ toolchain_setup_d() {
 		die "Did not find any appropriate GDC compiler installed"
 	fi
 
+	export CC=${bootstrap_gcc_bin_dir}/${CHOST}-gcc
+	export CXX=${bootstrap_gcc_bin_dir}/${CHOST}-g++
 	export GDC=${bootstrap_gcc_bin_dir}/${CHOST}-gdc
 }
 
@@ -1285,8 +1288,12 @@ toolchain_src_configure() {
 		_tc_use_if_iuse d && [[ ${GCCMAJOR} -ge 12 ]]
 	}
 
-	_need_ada_bootstrap_mangling && toolchain_setup_ada
+	# D goes first because while we'd like a matching CC/CXX for it,
+	# it's not critical like it is for Ada, where a configure test
+	# fails when trying to find GNAT w/o it. D has the benefit of the
+	# GDC envvar.
 	_need_d_bootstrap && toolchain_setup_d
+	_need_ada_bootstrap_mangling && toolchain_setup_ada
 
 	confgcc+=( --enable-languages=${GCC_LANG} )
 
@@ -1379,7 +1386,7 @@ toolchain_src_configure() {
 	# Turn on the -Wl,--build-id flag by default for ELF targets. bug #953869
 	# This helps with locating debug files.
 	case ${CTARGET} in
-		*-linux-*|*-elf|*-eabi)
+		*-linux-*)
 			tc_version_is_at_least 4.5 && confgcc+=(
 				--enable-linker-build-id
 			)
@@ -2096,7 +2103,7 @@ gcc_do_filter_flags() {
 			eerror "Different values of l1-cache-size detected!"
 			eerror "GCC will fail to bootstrap when comparing files with these flags."
 			eerror "This CPU is likely big.little/hybrid hardware with power/efficiency cores."
-			eerror "Please install app-misc/resolve-march-native and run 'resolve-march-native'"
+			eerror "Please install app-misc/resolve-march-native and run 'resolve-march-native --drop-cache-sizes'"
 			eerror "to find a safe value of CFLAGS for this CPU. Note that this may vary"
 			eerror "depending on the core it ran on. taskset can be used to fix the cores used."
 			die "Varying l1-cache-size found, aborting (bug #915389, gcc PR#111768)"
