@@ -7,7 +7,7 @@ MODULES_OPTIONAL_IUSE=+modules
 inherit desktop dot-a eapi9-pipestatus eapi9-ver flag-o-matic linux-mod-r1
 inherit readme.gentoo-r1 systemd toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=7.0
+MODULES_KERNEL_MAX=7.2
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -114,7 +114,6 @@ pkg_setup() {
 	local CONFIG_CHECK="
 		PROC_FS
 		~DRM_KMS_HELPER
-		~DRM_FBDEV_EMULATION
 		~SYSVIPC
 		~!LOCKDEP
 		~!PREEMPT_RT
@@ -126,6 +125,9 @@ pkg_setup() {
 
 	kernel_is -ge 6 11 && linux_chkconfig_present DRM_FBDEV_EMULATION &&
 		CONFIG_CHECK+=" DRM_TTM_HELPER"
+
+	linux_chkconfig_present DRM_KMS_HELPER &&
+		CONFIG_CHECK+=" DRM_FBDEV_EMULATION"
 
 	use kernel-open && CONFIG_CHECK+=" MMU_NOTIFIER" #843827
 
@@ -140,9 +142,6 @@ pkg_setup() {
 	local ERROR_DRM_TTM_HELPER="CONFIG_DRM_TTM_HELPER: is not set but is needed to compile when using
 	kernel version 6.11.x or newer while DRM_FBDEV_EMULATION is set.
 	${drm_helper_msg}"
-	local ERROR_DRM_FBDEV_EMULATION="CONFIG_DRM_FBDEV_EMULATION: is not set but is needed for
-	nvidia-drm.fbdev=1 support (see ${EPREFIX}/etc/modprobe.d/nvidia.conf), may
-	result in a blank console/tty."
 	local ERROR_MMU_NOTIFIER="CONFIG_MMU_NOTIFIER: is not set but needed to build with USE=kernel-open.
 	Cannot be directly selected in the kernel's menuconfig, and may need
 	selection of another option that requires it such as CONFIG_AMD_IOMMU=y,
@@ -575,13 +574,13 @@ pkg_postinst() {
 		ewarn "\nYou are installing a version of ${PN} known not to work"
 		ewarn "with a GPU of the current system. If unwanted, add the mask:"
 		if [[ -d ${EROOT}/etc/portage/package.mask ]]; then
-			ewarn "  echo '${NV_LEGACY_MASK}' > ${EROOT}/etc/portage/package.mask/${PN}"
+			ewarn "\n  echo '${NV_LEGACY_MASK}' > ${EROOT}/etc/portage/package.mask/${PN}"
 		else
-			ewarn "  echo '${NV_LEGACY_MASK}' >> ${EROOT}/etc/portage/package.mask"
+			ewarn "\n  echo '${NV_LEGACY_MASK}' >> ${EROOT}/etc/portage/package.mask"
 		fi
-		ewarn "...then downgrade to a legacy[1] branch if possible (not all old versions"
+		ewarn "\n...then downgrade to a legacy[1] branch if possible (not all old versions"
 		ewarn "are available or fully functional, may need to consider nouveau[2])."
-		ewarn "[1] https://www.nvidia.com/object/IO_32667.html"
+		ewarn "\n[1] https://www.nvidia.com/object/IO_32667.html"
 		ewarn "[2] https://wiki.gentoo.org/wiki/Nouveau"
 	fi
 
