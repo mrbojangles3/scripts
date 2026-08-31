@@ -42,14 +42,14 @@ RDEPEND="
 	btrfs? ( sys-fs/btrfs-progs )
 	wrapper? ( !app-containers/docker-cli )
 	seccomp? ( sys-libs/libseccomp:= )
-	selinux? ( sec-policy/selinux-podman )
+	selinux? ( sec-policy/selinux-podman sys-libs/libselinux:= )
 	systemd? ( sys-apps/systemd:= )
 "
 DEPEND="${RDEPEND}"
 BDEPEND="
 	${PYTHON_DEPS}
 	dev-go/go-md2man
-	>=dev-lang/go-1.25.9
+	>=dev-lang/go-1.25.6
 "
 
 PATCHES=(
