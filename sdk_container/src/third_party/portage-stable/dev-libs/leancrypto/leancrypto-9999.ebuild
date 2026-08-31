@@ -33,8 +33,7 @@ IUSE="+asm test tools"
 RESTRICT="!test? ( test )"
 
 PATCHES=(
-	"${FILESDIR}"/${PN}-1.6.0-no-force-lto.patch
-	"${FILESDIR}"/${PN}-1.7.2-toolchain-hardening.patch
+	"${FILESDIR}"/${PN}-1.8.0-respect-flags.patch
 )
 
 src_configure() {
