@@ -1,4 +1,4 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -13,7 +13,7 @@ SRC_URI+=" verify-sig? ( mirror://gnupg/${PN}/${P}.tar.bz2.sig )"
 
 LICENSE="LGPL-2.1+ GPL-2+ MIT"
 SLOT="0/20" # subslot = soname major version
-KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~arm64-macos ~x64-macos ~x64-solaris"
+KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
 IUSE="+asm doc +getentropy static-libs"
 IUSE+=" cpu_flags_arm_neon cpu_flags_arm_aes cpu_flags_arm_sha1 cpu_flags_arm_sha2 cpu_flags_arm_sve"
 IUSE+=" cpu_flags_ppc_altivec cpu_flags_ppc_vsx2 cpu_flags_ppc_vsx3"
@@ -34,7 +34,7 @@ REQUIRED_USE="
 "
 
 RDEPEND="
-	>=dev-libs/libgpg-error-1.49[${MULTILIB_USEDEP}]
+	>=dev-libs/libgpg-error-1.56[${MULTILIB_USEDEP}]
 	getentropy? (
 		kernel_linux? (
 			elibc_glibc? ( >=sys-libs/glibc-2.25 )
@@ -49,8 +49,12 @@ BDEPEND="
 "
 
 PATCHES=(
-	"${FILESDIR}"/${PN}-multilib-syspath.patch
+	"${FILESDIR}"/${PN}-1.12.0-multilib-syspath.patch
 	"${FILESDIR}"/${PN}-powerpc-darwin.patch
+	# Post-1.12.3 fixes
+	"${FILESDIR}"/0001-cipher-rsa-oaep-Validate-all-zero-PS.patch
+	"${FILESDIR}"/0002-cipher-rsa-pss-Validate-the-length-of-hashed-input.patch
+	"${FILESDIR}"/0003-cipher-rsa-pss-Fix-SALT-LENGTH-handling.patch
 )
 
 MULTILIB_CHOST_TOOLS=(
@@ -84,15 +88,9 @@ src_prepare() {
 }
 
 src_configure() {
-	# Sensitive to optimisation; parts of the codebase are built with
-	# -O0 already. Don't risk it with UB.
-	strip-flags
-
 	# Temporary workaround for a build failure (known gcc issue):
-	#
 	#  * https://bugs.gentoo.org/956605
-	#  * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110812
-	#
+	#  * https://gcc.gnu.org/PR110812
 	use riscv && filter-lto
 
 	# Temporary workaround for mfpmath=sse on x86 causing issues when -msse is
