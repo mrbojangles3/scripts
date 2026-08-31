@@ -3,7 +3,7 @@
 
 EAPI=8
 
-DISTUTILS_USE_PEP517=flit
+DISTUTILS_USE_PEP517=flit-core
 PYPI_VERIFY_REPO=https://github.com/pypa/dependency-groups
 PYTHON_COMPAT=( python3_{12..15} python3_{14,15}t )
 
@@ -17,7 +17,7 @@ HOMEPAGE="
 
 LICENSE="MIT"
 SLOT="0"
-KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86"
+KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
 
 RDEPEND="
 	dev-python/packaging[${PYTHON_USEDEP}]
