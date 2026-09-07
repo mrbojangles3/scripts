@@ -78,7 +78,7 @@ LICENSE="GPL-3+ LGPL-2.1+"
 SLOT="0"
 IUSE="babeltrace cet +debuginfod guile lzma multitarget nls +python rocm +server sim source-highlight test vanilla +xml xxhash zstd"
 if [[ -n ${REGULAR_RELEASE} ]] ; then
-	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~x64-macos ~x64-solaris"
+	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~x64-macos ~x64-solaris"
 fi
 REQUIRED_USE="
 	guile? ( ${GUILE_REQUIRED_USE} )
@@ -129,6 +129,8 @@ QA_PREBUILT="usr/share/gdb/guile/*"
 
 PATCHES=(
 	"${FILESDIR}"/${PN}-8.3.1-verbose-build.patch
+	"${FILESDIR}"/${P}-sparc-termios.patch
+	"${FILESDIR}"/${PN}-17.2-gdb-cli-Don-t-emit-emojis-in-MI.patch
 )
 
 pkg_setup() {
