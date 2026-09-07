@@ -4,31 +4,33 @@
 EAPI=8
 
 inherit shell-completion go-env go-module toolchain-funcs
-MY_PV=${PV/_/-}
 
 # update this on every bump
-GIT_COMMIT=f52814d454173982e6692dd7e290a41b828d9cbc
+GIT_COMMIT=88096ef00576baf72a9cb45caa45c0544c40e0a7
 
 DESCRIPTION="the command line binary for docker"
 HOMEPAGE="https://www.docker.com/"
-SRC_URI="https://github.com/docker/cli/archive/v${MY_PV}.tar.gz -> ${P}.tar.gz"
+SRC_URI="https://github.com/docker/cli/archive/v${PV/_/-}.tar.gz -> ${P}.tar.gz"
 S="${WORKDIR}/cli-${PV}"
 
 LICENSE="Apache-2.0"
 SLOT="0"
-KEYWORDS="amd64 ~arm arm64 ~loong ppc64 ~riscv ~x86"
+KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc64 ~riscv ~x86"
 IUSE="selinux"
 
 RDEPEND="selinux? ( sec-policy/selinux-docker )"
-BDEPEND="dev-go/go-md2man"
+BDEPEND="
+	dev-go/go-md2man
+	>=dev-lang/go-1.26.3
+"
 
 RESTRICT="installsources strip test"
 
 src_prepare() {
 	default
 	sed -i 's@dockerd\?\.exe@@g' contrib/completion/bash/docker || die
-	ln -s vendor.mod go.mod
-	ln -s vendor.sum go.sum
+	ln -s vendor.mod go.mod || die
+	ln -s vendor.sum go.sum || die
 }
 
 src_compile() {
