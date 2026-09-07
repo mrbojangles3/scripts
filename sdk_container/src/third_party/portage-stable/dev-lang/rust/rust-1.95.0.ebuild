@@ -6,7 +6,7 @@ EAPI=8
 # Bump notes: https://wiki.gentoo.org/wiki/Project:Rust/Rust_bump
 
 LLVM_COMPAT=( 22 )
-PYTHON_COMPAT=( python3_{11..14} )
+PYTHON_COMPAT=( python3_{12..14} )
 
 # Patches are kept in rust-patches.git, see its README.rst for the versioning
 # scheme.
@@ -31,7 +31,7 @@ else
 	RUST_MIN_VER="$(ver_cut 1).$(($(ver_cut 2) - 1)).0"
 fi
 
-inherit check-reqs estack flag-o-matic llvm-r1 multiprocessing optfeature
+inherit check-reqs estack flag-o-matic llvm-r2 multiprocessing optfeature
 inherit multilib multilib-build python-any-r1 rust rust-toolchain toolchain-funcs
 inherit verify-sig
 
@@ -61,7 +61,7 @@ else
 	"
 	S="${WORKDIR}/${MY_P}-src"
 
-	KEYWORDS="~amd64 ~arm ~arm64 ~loong ~mips ~ppc ~ppc64 ~riscv ~sparc ~x86"
+	KEYWORDS="amd64 arm arm64 ~loong ~mips ppc ppc64 ~riscv ~sparc x86"
 fi
 
 DESCRIPTION="Systems programming language originally developed by Mozilla"
@@ -273,7 +273,7 @@ pkg_setup() {
 	rust_pkg_setup
 
 	if use system-llvm; then
-		llvm-r1_pkg_setup
+		llvm-r2_pkg_setup
 
 		local llvm_config="$(get_llvm_prefix)/bin/llvm-config"
 		export LLVM_LINK_SHARED=1
@@ -366,9 +366,60 @@ src_prepare() {
 src_configure() {
 	if tc-is-cross-compiler; then
 		export PKG_CONFIG_ALLOW_CROSS=1
-		export PKG_CONFIG_PATH="${ESYSROOT}/usr/$(get_libdir)/pkgconfig"
-		export OPENSSL_INCLUDE_DIR="${ESYSROOT}/usr/include"
-		export OPENSSL_LIB_DIR="${ESYSROOT}/usr/$(get_libdir)"
+
+		# https://docs.rs/pkg-config/latest/pkg_config/#cross-compilation
+		local pcvar
+		for pcvar in PKG_CONFIG_{PATH,LIBDIR} ; do
+			pcvar="${pcvar}_${CHOST//./_}"
+			pcvar="${pcvar//-/_}"
+
+			[[ -n ${!pcvar} ]] && continue
+
+			case ${pcvar} in
+				*PKG_CONFIG_PATH*)
+					printf -v "${pcvar}" "${ESYSROOT}/usr/$(get_libdir)/pkgconfig"
+					;;
+				*PKG_CONFIG_LIBDIR*)
+					printf -v "${pcvar}" "${ESYSROOT}/usr/$(get_libdir)"
+					;;
+				*)
+					continue
+					;;
+			esac
+
+			export "${pcvar}"
+		done
+
+		# https://docs.rs/openssl/latest/openssl/#manual
+		local osslvar
+		for osslvar in OPENSSL_{INCLUDE_,LIB_,}DIR ; do
+			osslvar="${CHOST}_${osslvar}"
+			osslvar="${osslvar^^}"
+			osslvar="${osslvar//-/_}"
+
+			[[ -n ${!osslvar} ]] && continue
+
+			case ${osslvar} in
+				*OPENSSL_DIR*)
+					printf -v "${osslvar}" "${ESYSROOT}/usr"
+					;;
+				*OPENSSL_INCLUDE_DIR*)
+					printf -v "${osslvar}" "${ESYSROOT}/usr/include"
+					;;
+				*OPENSSL_LIB_DIR*)
+					printf -v "${osslvar}" "${ESYSROOT}/usr/$(get_libdir)"
+					;;
+				*)
+					continue
+					;;
+			esac
+
+			export "${osslvar}"
+		done
+
+		# https://issues.chromium.org/issues/357917328
+		# https://github.com/rust-lang/libz-sys/blob/1.1.18/build.rs#L25
+		export LIBZ_SYS_STATIC=1
 	fi
 
 	# Avoid bundled copies of libraries
