@@ -23,7 +23,7 @@ S=${WORKDIR}/lxml-${P}
 
 LICENSE="BSD ElementTree GPL-2 PSF-2"
 SLOT="0"
-KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~arm64-macos ~x64-macos ~x64-solaris"
+KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~arm64-macos ~x64-macos ~x64-solaris"
 IUSE="doc examples +threads test"
 RESTRICT="!test? ( test )"
 
@@ -50,10 +50,6 @@ BDEPEND="
 		dev-python/cssselect[${PYTHON_USEDEP}]
 	)
 "
-
-PATCHES=(
-	"${FILESDIR}/${PN}-6.0.4-pypy.patch"
-)
 
 python_check_deps() {
 	use doc || return 0
@@ -86,9 +82,6 @@ python_compile_all() {
 }
 
 python_test() {
-	# tests are completely broken on pypy by now
-	[[ ${EPYTHON} == pypy* ]] && return
-
 	local dir=${BUILD_DIR}/test$(python_get_sitedir)/lxml
 	local -x PATH=${BUILD_DIR}/test/usr/bin:${PATH}
 
