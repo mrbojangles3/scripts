@@ -50,7 +50,6 @@ IDEPEND=">=app-eselect/eselect-pinentry-0.7.4"
 DOCS=( AUTHORS ChangeLog NEWS README THANKS TODO )
 
 PATCHES=(
-	"${FILESDIR}/${PN}-1.0.0-AR.patch"
 	"${FILESDIR}/${PN}-1.3.0-automagic.patch" # bug #819939, bug #837719
 )
 
