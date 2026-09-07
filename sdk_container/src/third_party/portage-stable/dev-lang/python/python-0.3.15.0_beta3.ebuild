@@ -3,34 +3,38 @@
 
 EAPI="8"
 
-LLVM_COMPAT=( 18 )
-LLVM_OPTIONAL=1
+VERIFY_SIG_METHOD=sigstore
 WANT_LIBTOOL="none"
 
-inherit autotools check-reqs flag-o-matic git-r3 linux-info llvm-r1
-inherit multiprocessing pax-utils python-utils-r1 toolchain-funcs
+inherit autotools check-reqs flag-o-matic linux-info
+inherit multiprocessing pax-utils toolchain-funcs verify-sig
 
-PYVER=$(ver_cut 1-2)
-PATCHSET="python-gentoo-patches-3.13.14"
+REAL_PV=${PV#0.}
+MY_PV=${REAL_PV/_beta/b}
+MY_P="Python-${MY_PV%_p*}"
+PYVER="$(ver_cut 2-3)t"
+PATCHSET="python-gentoo-patches-${MY_PV}"
 
-DESCRIPTION="An interpreted, interactive, object-oriented programming language"
+DESCRIPTION="Freethreading (no-GIL) version of Python programming language"
 HOMEPAGE="
 	https://www.python.org/
 	https://github.com/python/cpython/
 "
 SRC_URI="
+	https://www.python.org/ftp/python/${REAL_PV%%_*}/${MY_P}.tar.xz
 	https://distfiles.gentoo.org/pub/proj/python/patchsets/${PYVER%t}/${PATCHSET}.tar.xz
+	verify-sig? (
+		https://www.python.org/ftp/python/${REAL_PV%%_*}/${MY_P}.tar.xz.sigstore
+	)
 "
-EGIT_REPO_URI="https://github.com/python/cpython.git"
-EGIT_BRANCH=${PYVER}
+S="${WORKDIR}/${MY_P}"
 
 LICENSE="PSF-2"
 SLOT="${PYVER}"
 IUSE="
-	bluetooth debug +ensurepip examples gdbm jit libedit +ncurses pgo
-	+readline +sqlite +ssl test tk valgrind
+	bluetooth build debug +ensurepip examples gdbm libedit +ncurses pgo
+	+readline +sqlite +ssl tail-call-interp test tk valgrind
 "
-REQUIRED_USE="jit? ( ${LLVM_REQUIRED_USE} )"
 RESTRICT="!test? ( test )"
 
 # Do not add a dependency on dev-lang/python to this ebuild.
@@ -41,7 +45,6 @@ RESTRICT="!test? ( test )"
 RDEPEND="
 	app-arch/bzip2:=
 	app-arch/xz-utils:=
-	app-crypt/libb2
 	app-misc/mime-types
 	>=dev-libs/expat-2.1:=
 	dev-libs/libffi:=
@@ -50,6 +53,7 @@ RDEPEND="
 	sys-apps/util-linux
 	>=virtual/zlib-1.1.3:=
 	virtual/libintl
+	!build? ( app-arch/zstd:= )
 	gdbm? ( sys-libs/gdbm:=[berkdb] )
 	ncurses? ( >=sys-libs/ncurses-5.2:= )
 	readline? (
@@ -72,6 +76,7 @@ DEPEND="
 	test? (
 		dev-python/ensurepip-pip
 		dev-python/ensurepip-setuptools
+		dev-python/ensurepip-wheel
 	)
 	valgrind? ( dev-debug/valgrind )
 "
@@ -80,11 +85,11 @@ BDEPEND="
 	dev-build/autoconf-archive
 	app-alternatives/awk
 	virtual/pkgconfig
-	jit? (
-		$(llvm_gen_dep '
-			llvm-core/clang:${LLVM_SLOT}
-			llvm-core/llvm:${LLVM_SLOT}
-		')
+	tail-call-interp? (
+		|| (
+			>=sys-devel/gcc-16:*
+			>=llvm-core/clang-19:*
+		)
 	)
 "
 if [[ ${PV} != *_alpha* ]]; then
@@ -95,6 +100,10 @@ fi
 PDEPEND="
 	ensurepip? ( dev-python/ensurepip-pip )
 "
+
+# https://www.python.org/downloads/metadata/sigstore/
+VERIFY_SIG_CERT_IDENTITY=hugo@python.org
+VERIFY_SIG_CERT_OIDC_ISSUER=https://github.com/login/oauth
 
 # large file tests involve a 2.5G file being copied (duplicated)
 CHECKREQS_DISK_BUILD=5500M
@@ -113,18 +122,15 @@ pkg_pretend() {
 		check-reqs_pkg_pretend
 	fi
 
-	if use jit; then
-		ewarn "USE=jit is considered experimental upstream.  Using it"
-		ewarn "could lead to unexpected breakage, including race conditions"
-		ewarn "and crashes, respectively.  Please do not file Gentoo bugs, unless"
-		ewarn "you can reproduce the problem with dev-lang/python[-jit].  Instead,"
-		ewarn "please consider reporting JIT problems upstream."
-	fi
+	ewarn "Freethreading build is considered experimental upstream.  Using it"
+	ewarn "could lead to unexpected breakage, including race conditions"
+	ewarn "and crashes, respectively.  Please do not file Gentoo bugs, unless"
+	ewarn "you can reproduce the problem with dev-lang/python.  Instead,"
+	ewarn "please consider reporting freethreading problems upstream."
 }
 
 pkg_setup() {
 	if [[ ${MERGE_TYPE} != binary ]]; then
-		use jit && llvm-r1_pkg_setup
 		if use test || use pgo; then
 			check-reqs_pkg_setup
 
@@ -134,11 +140,17 @@ pkg_setup() {
 			done
 			linux-info_pkg_setup
 		fi
+		if use tail-call-interp; then
+			tc-check-min_ver gcc 16
+			tc-check-min_ver clang 19
+		fi
 	fi
 }
 
 src_unpack() {
-	git-r3_src_unpack
+	if use verify-sig; then
+		verify-sig_verify_detached "${DISTDIR}"/${MY_P}.tar.xz{,.sigstore}
+	fi
 	default
 }
 
@@ -353,6 +365,10 @@ src_configure() {
 			# Hangs (actually runs indefinitely executing itself w/ many cpython builds)
 			# bug #900429
 			-x test_tools
+
+			# Test terminates abruptly which corrupts written profile data
+			# bug #964023
+			-x test_pyrepl
 		)
 
 		if has_version "app-arch/rpm" ; then
@@ -386,12 +402,12 @@ src_configure() {
 		--with-platlibdir=lib
 		--with-pkg-config=yes
 		--with-wheel-pkg-dir="${EPREFIX}"/usr/lib/python/ensurepip
-		--enable-gil
+		--disable-gil
 
 		$(use_with debug assertions)
-		$(use_enable jit experimental-jit)
 		$(use_enable pgo optimizations)
 		$(use_with readline readline "$(usex libedit editline readline)")
+		$(use_with tail-call-interp)
 		$(use_with valgrind)
 	)
 
@@ -406,6 +422,7 @@ src_configure() {
 	cat > Modules/Setup.local <<-EOF || die
 		*disabled*
 		nis
+		$(usev build '_zstd')
 		$(usev !gdbm '_gdbm _dbm')
 		$(usev !sqlite '_sqlite3')
 		$(usev !ssl '_hashlib _ssl')
@@ -518,12 +535,21 @@ src_test() {
 
 src_install() {
 	local libdir=${ED}/usr/lib/python${PYVER}
+	local build_dir=$(<pybuilddir.txt)
 
 	# -j1 hack for now for bug #843458
 	emake -j1 DESTDIR="${D}" TEST_MODULES=no altinstall
 
+	# Install build-details.json manually because it was randomly removed
+	# from altinstall in https://github.com/python/cpython/pull/142269.
+	cp "${build_dir}"/build-details.json "${libdir}"/ || die
+
 	# Fix collisions between different slots of Python.
 	rm "${ED}/usr/$(get_libdir)/libpython3.so" || die
+	# Fix collision with GIL-enabled build.
+	rm "${ED}/usr/bin/python${PYVER%t}" || die
+	mv "${ED}"/usr/bin/pydoc{${PYVER%t},${PYVER}} || die
+	mv "${ED}"/usr/share/man/man1/python{${PYVER%t},${PYVER}}.1 || die
 
 	# Cheap hack to get version with ABIFLAGS
 	local abiver=$(cd "${ED}/usr/include"; echo python*)
@@ -549,14 +575,17 @@ src_install() {
 	if ! use sqlite; then
 		rm -r "${libdir}/"sqlite3 || die
 	fi
-	if ! use tk; then
-		rm -r "${ED}/usr/bin/idle${PYVER}" || die
+	if use tk; then
+		# rename to avoid collision with dev-lang/python
+		mv "${ED}"/usr/bin/idle{${PYVER%t},${PYVER}} || die
+	else
+		rm -r "${ED}/usr/bin/idle${PYVER%t}" || die
 		rm -r "${libdir}/"{idlelib,tkinter} || die
 	fi
 
 	ln -s ../python/EXTERNALLY-MANAGED "${libdir}/EXTERNALLY-MANAGED" || die
 
-	dodoc Misc/{ACKS,HISTORY}
+	dodoc Misc/{ACKS,HISTORY,NEWS}
 
 	if use examples; then
 		docinto examples
@@ -577,28 +606,4 @@ src_install() {
 		-e "s:@PYDOC@:pydoc${PYVER}:" \
 		-i "${ED}/etc/conf.d/pydoc-${PYVER}" \
 		"${ED}/etc/init.d/pydoc-${PYVER}" || die "sed failed"
-
-	# python-exec wrapping support
-	local pymajor=${PYVER%.*}
-	local EPYTHON=python${PYVER}
-	local scriptdir=${D}$(python_get_scriptdir)
-	mkdir -p "${scriptdir}" || die
-	# python and pythonX
-	ln -s "../../../bin/${abiver}" "${scriptdir}/python${pymajor}" || die
-	ln -s "python${pymajor}" "${scriptdir}/python" || die
-	# python-config and pythonX-config
-	# note: we need to create a wrapper rather than symlinking it due
-	# to some random dirname(argv[0]) magic performed by python-config
-	cat > "${scriptdir}/python${pymajor}-config" <<-EOF || die
-		#!/bin/sh
-		exec "${abiver}-config" "\${@}"
-	EOF
-	chmod +x "${scriptdir}/python${pymajor}-config" || die
-	ln -s "python${pymajor}-config" "${scriptdir}/python-config" || die
-	# pydoc
-	ln -s "../../../bin/pydoc${PYVER}" "${scriptdir}/pydoc" || die
-	# idle
-	if use tk; then
-		ln -s "../../../bin/idle${PYVER}" "${scriptdir}/idle" || die
-	fi
 }
