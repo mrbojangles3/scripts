@@ -12,6 +12,7 @@ net-irc/quassel urlpreview
 # Ionen Wolkens <ionen@gentoo.org> (2026-03-16)
 # media-libs/opencolorio is masked on ppc64(be)
 media-video/ffmpeg opencolorio
+media-video/ffmpeg-compat opencolorio
 
 # Andreas Sturmlechner <asturm@gentoo.org> (2026-02-14)
 # <dev-cpp/opentelemetry-cpp-1.10 not keyworded here, bug #961188
@@ -126,11 +127,6 @@ sci-libs/symengine tcmalloc
 # https://github.com/rustsec/rustsec/issues/707
 dev-util/cargo-audit fix
 
-# Michał Górny <mgorny@gentoo.org> (2021-12-31)
-# Don't apply stable masks to python-exec since we're forcing every
-# impl there anyway. Please keep this in sync with use.stable.mask.
-dev-lang/python-exec -python_targets_pypy3_11
-
 # Marek Szuba <marecki@gentoo.org> (2021-07-18)
 # media-plugins/zam-plugins not keyworded here
 media-sound/easyeffects zamaudio
@@ -237,11 +233,6 @@ net-vpn/tor seccomp
 # Jeroen Roovers <jer@gentoo.org> (2015-12-26)
 # Mask until >sys-cluster/ceph-0.94 goes stable
 net-analyzer/rrdtool rados
-
-# Michael Sterrett <mr_bones_@gentoo.org> (2013-11-12)
-# Mask openmedia use flag because the content generation tools
-# are missing keywords.
-games-simulation/openttd openmedia
 
 # Kacper Kowalik <xarthisius@gentoo.org> (2011-09-02)
 # Mask www-client/seamonkey[ipc] on ppc64 wrt #381191
