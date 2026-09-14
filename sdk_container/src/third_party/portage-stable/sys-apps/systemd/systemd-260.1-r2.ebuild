@@ -44,7 +44,7 @@ REQUIRED_USE="
 	dns-over-tls? ( openssl )
 	fido2? ( cryptsetup openssl )
 	homed? ( cryptsetup pam openssl )
-	importd? ( curl lzma openssl )
+	importd? ( curl libarchive lzma openssl )
 	?? ( passwdqc pwquality )
 	passwdqc? ( homed )
 	pwquality? ( homed )
@@ -260,6 +260,7 @@ src_prepare() {
 		"${FILESDIR}/systemd-260.1-openssl-4.patch"
 		"${FILESDIR}/systemd-260.1-gcc-17.patch"
 		"${FILESDIR}/systemd-260.1-gpt-generator.patch"
+		"${FILESDIR}/systemd-261-lxml-6.1.3.patch"
 	)
 
 	if ! use vanilla; then
@@ -286,7 +287,7 @@ src_configure() {
 		# We can't unconditionally do this b/c we fortify needs
 		# some level of optimisation.
 		filter-flags -D_FORTIFY_SOURCE=3
-		append-cppflags -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
+		append-cppflags -U_FORTIFY_SOURCE -D_GENTOO_NO_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
 	fi
 
 	python_setup
@@ -559,8 +560,11 @@ pkg_postinst() {
 	# between OpenRC & systemd
 	migrate_locale
 
-	# Bug 971385
-	systemd_reenable getty@.service
+	# Bug 971385, 974688
+	local autovt=${EROOT}/etc/systemd/system/autovt@.service
+	if [[ ! -e ${autovt} && ! -L ${autovt} ]]; then
+		ln -s "${EPREFIX}/usr/lib/systemd/system/getty@.service" "${autovt}" || FAIL=1
+	fi
 
 	if [[ -z ${REPLACING_VERSIONS} ]]; then
 		if type systemctl &>/dev/null; then
