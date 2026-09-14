@@ -1,6 +1,15 @@
 # Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
+# Alexey Sokolov <alexey+gentoo@asokolov.org> (2026-07-07)
+# New versions of dev-cpp/cpp-httplib dropped support for 32 bits. Bug #973312
+dev-util/ccache http
+sci-astronomy/stellarium telescope
+
+# Brett A C Sheffield <bacs@librecast.net> (2026-06-23)
+# virtual/pandoc deps are not keyworded here
+>=dev-libs/xmlsec-1.3.11 doc
+
 # Alfred Wingate <parona@protonmail.com> (2026-05-13)
 # dev-qt/qtgraphs:6 is not keyworded here
 dev-python/pyside graphs
@@ -62,10 +71,6 @@ app-emulation/qemu passt
 # Alfred Wingate <parona@protonmail.com> (2025-07-31)
 # mongodb not keyworded here
 sci-libs/gdal mongodb
-
-# Andreas Sturmlechner <asturm@gentoo.org> (2025-07-26)
-# kde-apps/kamoso not keyworded yet, bug #946343
->=kde-apps/kdemultimedia-meta-25.04.2-r1 gstreamer
 
 # Robin H. Johnson <robbat2@gentoo.org> (2025-07-04)
 # Deeper test dependencies with Ruby 3.3 are no longer yet keyworded keyword;
