@@ -3,12 +3,12 @@
 
 EAPI=8
 inherit go-module systemd tmpfiles
-GIT_COMMIT=65251b30e
+GIT_COMMIT=fc04cf702
 
 DESCRIPTION="Highly-available key value store for shared configuration and service discovery"
 HOMEPAGE="https://github.com/etcd-io/etcd"
 SRC_URI="https://github.com/etcd-io/etcd/archive/v${PV}.tar.gz -> ${P}.tar.gz"
-SRC_URI+=" https://dev.gentoo.org/~chewi/distfiles/${P}-deps.tar.xz"
+SRC_URI+=" https://dev.gentoo.org/~chewi/distfiles/${P}-deps.tar.xz" # Vendor tarball doesn't work.
 
 LICENSE="Apache-2.0"
 LICENSE+=" BSD BSD-2 MIT"
@@ -22,6 +22,7 @@ COMMON_DEPEND="server? (
 	)"
 DEPEND="${COMMON_DEPEND}"
 RDEPEND="${COMMON_DEPEND}"
+BDEPEND=">=dev-lang/go-1.25.12"
 
 # Unit tests attempt to download go modules.
 PROPERTIES="test_network"
@@ -29,7 +30,7 @@ RESTRICT="test"
 
 src_prepare() {
 	default
-	sed -i "s|GIT_SHA=.*|GIT_SHA=${GIT_COMMIT}|" build.sh || die
+	sed -i "s|GIT_SHA=.*|GIT_SHA=${GIT_COMMIT}|" scripts/build_lib.sh || die
 
 	# Don't test these as they are not built.
 	find tools/ -name "*_test.go" -delete || die
@@ -40,11 +41,11 @@ src_configure() {
 }
 
 src_compile() {
-	./build.sh || die
+	scripts/build.sh || die
 }
 
 src_test() {
-	PASSES="unit" ./test.sh -v || die
+	PASSES="unit" scripts/test.sh -v || die
 }
 
 src_install() {
