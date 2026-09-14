@@ -35,7 +35,7 @@ S="${S_K}/tools/perf"
 
 LICENSE="GPL-2"
 SLOT="0"
-KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~x86"
+KEYWORDS="~alpha amd64 arm arm64 ~loong ppc ppc64 ~riscv x86"
 IUSE="abi_mips_o32 abi_mips_n32 abi_mips_n64 babeltrace capstone big-endian bpf caps crypt debug gtk java libpfm +libtraceevent +libtracefs lzma numa perl +python +slang systemtap tcmalloc unwind"
 
 REQUIRED_USE="
@@ -73,7 +73,7 @@ RDEPEND="
 		')
 	)
 	caps? ( sys-libs/libcap )
-	capstone? ( dev-libs/capstone )
+	capstone? ( <dev-libs/capstone-6 )
 	crypt? ( dev-libs/openssl:= )
 	gtk? ( x11-libs/gtk+:2 )
 	java? ( virtual/jre:* )
