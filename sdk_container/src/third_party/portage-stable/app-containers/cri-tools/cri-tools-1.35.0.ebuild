@@ -3,7 +3,7 @@
 
 EAPI=8
 
-inherit go-env go-module shell-completion sysroot
+inherit go-module shell-completion sysroot
 
 DESCRIPTION="CLI and validation tools for Kubelet Container Runtime (CRI)"
 HOMEPAGE="https://github.com/kubernetes-sigs/cri-tools"

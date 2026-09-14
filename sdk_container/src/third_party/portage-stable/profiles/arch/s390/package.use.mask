@@ -1,6 +1,10 @@
 # Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
+# Sam James <sam@gentoo.org> (2026-09-04)
+# sys-apps/xdg-desktop-portal not keyworded here
+x11-base/xwayland libei
+
 # Andreas K. Hüttel <dilfridge@gentoo.org> (2026-05-04)
 # Unkeyworded dependencies
 sys-kernel/dracut test
@@ -68,10 +72,6 @@ net-mail/dovecot cdb
 # NRK <nrk@disroot.org> (2025-04-07)
 # media-libs/libyuv is not keyworded
 media-libs/imlib2 y4m
-
-# Cristian Othón Martínez Vera <cfuga@cfuga.mx> (2025-04-09)
-# dev-db/tinycdb is not keyworded here
-mail-mta/sendmail tinycdb
 
 # NRK <nrk@disroot.org> (2025-03-17)
 # media-libs/libavif is not keyworded
@@ -157,10 +157,6 @@ app-admin/syslog-ng grpc
 # dev-libs/capstone not keyworded here
 dev-lang/php capstone
 
-# Mart Raudsepp <leio@gentoo.org> (2023-12-25)
-# sys-apps/xdg-desktop-portal not keyworded here yet
-x11-base/xwayland libei
-
 # James Le Cuirot (2023-12-12)
 # USE=bpf depends on llvm-core/clang which is not keyworded on s390
 media-libs/libv4l bpf
@@ -172,7 +168,7 @@ dev-python/matplotlib-inline test
 dev-python/nbclient test
 dev-python/nbconvert test
 
-# Violet Purcell <vimproved@inventati.org> (2023-10-12)
+# Violet Purcell <vi@vimproved.dev> (2023-10-12)
 # dev-build/samurai is not keyworded here.
 app-alternatives/ninja samurai
 
@@ -313,6 +309,7 @@ app-portage/nattka depgraph-order
 # Adel Kara Slimane <adel.ks@zegrapher.com> (2022-03-14)
 # Untested useflag on other arches, needs keywording
 media-video/ffmpeg vmaf
+media-video/ffmpeg-compat vmaf
 
 # Sam James <sam@gentoo.org> (2021-11-05)
 # Avoid keywording unnecessary depenencies for now, bug #804115
