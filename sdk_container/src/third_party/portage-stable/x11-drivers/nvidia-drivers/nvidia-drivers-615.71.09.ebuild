@@ -4,21 +4,22 @@
 EAPI=8
 
 MODULES_OPTIONAL_IUSE=+modules
-inherit desktop dot-a eapi9-pipestatus eapi9-ver flag-o-matic linux-mod-r1
-inherit readme.gentoo-r1 systemd toolchain-funcs unpacker user-info
+PYTHON_COMPAT=( python3_{12..15} )
+inherit desktop dot-a eapi9-pipestatus eapi9-ver flag-o-matic
+inherit linux-mod-r1 python-single-r1 readme.gentoo-r1 systemd
+inherit toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=7.0
-NV_PIN=595.71.05
+MODULES_KERNEL_MAX=7.2
+NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
-HOMEPAGE="https://developer.nvidia.com/vulkan-driver/"
+HOMEPAGE="https://www.nvidia.com/"
 SRC_URI="
-	https://developer.nvidia.com/downloads/vulkan-beta-${PV//.}-linux
-		-> NVIDIA-Linux-x86_64-${PV}.run
-	$(printf "https://download.nvidia.com/XFree86/%s/%s-${NV_PIN}.tar.bz2 " \
+	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
+	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
+	$(printf "${NV_URI}%s/%s-${PV}.tar.bz2 " \
 		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})
-	https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${PV}.tar.gz
-		-> open-gpu-kernel-modules-${PV}.tar.gz
+	${NV_URI}NVIDIA-kernel-module-source/NVIDIA-kernel-module-source-${PV}.tar.xz
 "
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S=${WORKDIR}
@@ -27,9 +28,10 @@ LICENSE="
 	NVIDIA-2025 Apache-2.0 Boost-1.0 BSD BSD-2 GPL-2 MIT ZLIB
 	curl openssl public-domain
 "
-SLOT="0/vulkan"
-KEYWORDS="-* ~amd64"
+SLOT="0/${PV%%.*}"
+KEYWORDS="-* ~amd64 ~arm64"
 IUSE="+X abi_x86_32 abi_x86_64 persistenced powerd +static-libs +tools wayland"
+REQUIRED_USE="${PYTHON_REQUIRED_USE}"
 
 COMMON_DEPEND="
 	acct-group/video
@@ -57,10 +59,12 @@ COMMON_DEPEND="
 # (may use one or the other depending on setup)
 RDEPEND="
 	${COMMON_DEPEND}
+	${PYTHON_DEPS}
 	|| (
 		dev-libs/openssl-compat:3
 		dev-libs/openssl:0/3
 	)
+	sys-devel/gcc:*
 	sys-libs/glibc
 	X? (
 		media-libs/libglvnd[X,abi_x86_32(-)?]
@@ -93,6 +97,7 @@ DEPEND="
 	)
 "
 BDEPEND="
+	${PYTHON_DEPS}
 	sys-devel/m4
 	virtual/pkgconfig
 "
@@ -113,9 +118,9 @@ pkg_setup() {
 	require_configured_kernel
 
 	local CONFIG_CHECK="
+		CGROUPS
 		PROC_FS
 		~DRM_KMS_HELPER
-		~DRM_FBDEV_EMULATION
 		~SYSVIPC
 		~!LOCKDEP
 		~!PREEMPT_RT
@@ -128,6 +133,9 @@ pkg_setup() {
 	kernel_is -ge 6 11 && linux_chkconfig_present DRM_FBDEV_EMULATION &&
 		CONFIG_CHECK+=" DRM_TTM_HELPER"
 
+	linux_chkconfig_present DRM_KMS_HELPER &&
+		CONFIG_CHECK+=" DRM_FBDEV_EMULATION"
+
 	local drm_helper_msg="Cannot be directly selected in the kernel's config menus, and may need
 	selection of a DRM device even if unused, e.g. CONFIG_DRM_QXL=m or
 	DRM_AMDGPU=m (among others, consult the kernel config's help), can
@@ -138,24 +146,22 @@ pkg_setup() {
 	local ERROR_DRM_TTM_HELPER="CONFIG_DRM_TTM_HELPER: is not set but is needed to compile when using
 	kernel version 6.11.x or newer while DRM_FBDEV_EMULATION is set.
 	${drm_helper_msg}"
-	local ERROR_DRM_FBDEV_EMULATION="CONFIG_DRM_FBDEV_EMULATION: is not set but is needed for
-	nvidia-drm.fbdev=1 support (see ${EPREFIX}/etc/modprobe.d/nvidia.conf), may
-	result in a blank console/tty."
 	local ERROR_PREEMPT_RT="CONFIG_PREEMPT_RT: is set but is unsupported by NVIDIA upstream and
 	will fail to build unless the env var IGNORE_PREEMPT_RT_PRESENCE=1 is
 	set. Please do not report issues if run into e.g. kernel panics while
 	ignoring this."
 
 	linux-mod-r1_pkg_setup
+	python-single-r1_pkg_setup
 }
 
 src_prepare() {
 	# make patches usable across versions
-	rm nvidia-modprobe && mv nvidia-modprobe{-${NV_PIN},} || die
-	rm nvidia-persistenced && mv nvidia-persistenced{-${NV_PIN},} || die
-	rm nvidia-settings && mv nvidia-settings{-${NV_PIN},} || die
-	rm nvidia-xconfig && mv nvidia-xconfig{-${NV_PIN},} || die
-	mv open-gpu-kernel-modules-${PV} kernel-module-source || die
+	rm nvidia-modprobe && mv nvidia-modprobe{-${PV},} || die
+	rm nvidia-persistenced && mv nvidia-persistenced{-${PV},} || die
+	rm nvidia-settings && mv nvidia-settings{-${PV},} || die
+	rm nvidia-xconfig && mv nvidia-xconfig{-${PV},} || die
+	mv NVIDIA-kernel-module-source-${PV} kernel-module-source || die
 
 	default
 
@@ -169,6 +175,18 @@ src_prepare() {
 	# makefile attempts to install wayland library even if not built
 	use wayland || sed -i 's/ WAYLAND_LIB_install$//' \
 		nvidia-settings/src/Makefile || die
+
+	# temporary dirty workaround for clang being stricter than gcc,
+	# reproducing requires a kernel with CONFIG_OF_GPIO enabled
+	# nv-linux.h:1737:51: error: passing 'const struct gpio_device *' [...]
+	if CC=${KERNEL_CC} tc-is-clang; then
+		sed -e 's/-Wno-error/& -Wno-error=incompatible-pointer-types-discards-qualifiers/' \
+			-i kernel-module-source/kernel-open/Kbuild || die
+	fi
+
+	# .py can be called by the shell script which ignores the shebang
+	sed -i "s/python3/${EPYTHON}/g" nvidia-bug-report.sh || die
+	python_fix_shebang nvidia-networking-bug-report.py
 }
 
 src_compile() {
@@ -427,6 +445,7 @@ documentation that is installed alongside this README."
 	# MODULE:installer non-skipped extras
 	# (sleep services skipped, obsoleted by NVreg_UseKernelSuspendNotifiers=1)
 	dobin nvidia-bug-report.sh
+	dobin nvidia-networking-bug-report.py
 
 	insinto /usr/share/nvidia/files.d
 	doins sandboxutils-filelist.json
@@ -529,13 +548,13 @@ pkg_postinst() {
 		ewarn "\nYou are installing a version of ${PN} known not to work"
 		ewarn "with a GPU of the current system. If unwanted, add the mask:"
 		if [[ -d ${EROOT}/etc/portage/package.mask ]]; then
-			ewarn "  echo '${NV_LEGACY_MASK}' > ${EROOT}/etc/portage/package.mask/${PN}"
+			ewarn "\n  echo '${NV_LEGACY_MASK}' > ${EROOT}/etc/portage/package.mask/${PN}"
 		else
-			ewarn "  echo '${NV_LEGACY_MASK}' >> ${EROOT}/etc/portage/package.mask"
+			ewarn "\n  echo '${NV_LEGACY_MASK}' >> ${EROOT}/etc/portage/package.mask"
 		fi
-		ewarn "...then downgrade to a legacy[1] branch if possible (not all old versions"
+		ewarn "\n...then downgrade to a legacy[1] branch if possible (not all old versions"
 		ewarn "are available or fully functional, may need to consider nouveau[2])."
-		ewarn "[1] https://www.nvidia.com/object/IO_32667.html"
+		ewarn "\n[1] https://www.nvidia.com/object/IO_32667.html"
 		ewarn "[2] https://wiki.gentoo.org/wiki/Nouveau"
 	fi
 
