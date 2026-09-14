@@ -1,4 +1,4 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -44,10 +44,6 @@ REQUIRED_USE="
 	openct? ( !pcsc-lite !ctapi )
 	ctapi? ( !pcsc-lite !openct )
 	|| ( pcsc-lite openct ctapi )"
-
-PATCHES=(
-	"${FILESDIR}"/${PN}-0.26.1-c23-tests.patch
-)
 
 src_prepare() {
 	# This test is known to fail, for a long time upstream has carried
