@@ -7,20 +7,21 @@ EAPI=8
 # check Fedora's packaging (https://src.fedoraproject.org/rpms/audit/tree/rawhide)
 # on bumps (or if hitting a bug) to see what they've done there.
 
-PYTHON_COMPAT=( python3_{11..14} )
+PYTHON_COMPAT=( python3_{12..15} )
+TMPFILES_OPTIONAL=1
 
-inherit autotools multilib-minimal toolchain-funcs python-r1 linux-info systemd tmpfiles usr-ldscript
+inherit autotools multilib-minimal toolchain-funcs python-r1 linux-info
+inherit systemd tmpfiles usr-ldscript
 
 DESCRIPTION="Userspace utilities for storing and processing auditing records"
 HOMEPAGE="https://people.redhat.com/sgrubb/audit/"
-SRC_URI="https://github.com/linux-audit/audit-userspace/archive/refs/tags/v${PV}.tar.gz
-	-> ${P}.tar.gz"
-
+SRC_URI="https://github.com/linux-audit/audit-userspace/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
 S="${WORKDIR}/audit-userspace-${PV}"
+
 LICENSE="GPL-2+ LGPL-2.1+"
 SLOT="0"
 KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
-IUSE="gssapi io-uring ldap python static-libs"
+IUSE="build gssapi io-uring ldap python ssl static-libs"
 
 REQUIRED_USE="python? ( ${PYTHON_REQUIRED_USE} )"
 
@@ -29,6 +30,7 @@ RDEPEND="
 	gssapi? ( virtual/krb5 )
 	ldap? ( net-nds/openldap:=[${MULTILIB_USEDEP}] )
 	python? ( ${PYTHON_DEPS} )
+	ssl? ( >=dev-libs/openssl-1.1.1:= )
 "
 DEPEND="
 	${RDEPEND}
@@ -37,11 +39,10 @@ DEPEND="
 BDEPEND="
 	python? (
 		dev-lang/swig
-		$(python_gen_cond_dep '
-			dev-python/setuptools[${PYTHON_USEDEP}]
-		' python3_12)
+		dev-python/setuptools[${PYTHON_USEDEP}]
 	)
 "
+IDEPEND="!build? ( virtual/tmpfiles )"
 
 CONFIG_CHECK="~AUDIT"
 
@@ -51,11 +52,9 @@ QA_CONFIG_IMPL_DECL_SKIP=(
 	strndupa
 )
 
-PATCHES=(
-	"${FILESDIR}/${PN}-4.0.1-musl-basename.patch"
-)
-
 src_prepare() {
+	default
+
 	# audisp-remote moved in multilib_src_install_all
 	sed -i \
 		-e "s,/sbin/audisp-remote,${EPREFIX}/usr/sbin/audisp-remote," \
@@ -64,7 +63,10 @@ src_prepare() {
 	# Disable installing sample rules so they can be installed as docs.
 	echo -e '%:\n\t:' | tee rules/Makefile.{am,in} >/dev/null || die
 
-	default
+	# Tries to send a real audit event so fails
+	sed -i -e '/test_audit_logging_comm_format()/d' \
+		lib/test/audit_logging_test.c || die
+
 	eautoreconf
 }
 
@@ -75,6 +77,7 @@ multilib_src_configure() {
 		--runstatedir="${EPREFIX}"/run
 		$(use_enable gssapi gssapi-krb5)
 		$(use_enable ldap zos-remote)
+		$(multilib_native_use_enable ssl tls)
 		$(use_enable static-libs static)
 		$(use_with arm)
 		$(use_with arm64 aarch64)
@@ -116,6 +119,8 @@ src_configure() {
 multilib_src_compile() {
 	default
 
+	# We could copy this for tests but the only thing the bindings do
+	# in check-local is rebuild (!) with -Wl,--no-undefined.
 	if multilib_is_native_abi; then
 		local native_build="${BUILD_DIR}"
 
@@ -181,7 +186,7 @@ multilib_src_install_all() {
 
 pkg_postinst() {
 	lockdown_perms "${EROOT}"
-	tmpfiles_process audit.conf
+	! use build && tmpfiles_process audit.conf
 }
 
 lockdown_perms() {
