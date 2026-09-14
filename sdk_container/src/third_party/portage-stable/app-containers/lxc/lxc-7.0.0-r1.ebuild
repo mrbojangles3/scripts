@@ -3,7 +3,7 @@
 
 EAPI=8
 
-inherit bash-completion-r1 linux-info meson optfeature systemd verify-sig
+inherit linux-info meson optfeature shell-completion systemd xdg-utils verify-sig
 
 DESCRIPTION="A userspace interface for the Linux kernel containment features"
 HOMEPAGE="https://linuxcontainers.org/ https://github.com/lxc/lxc"
@@ -11,9 +11,12 @@ SRC_URI="https://linuxcontainers.org/downloads/lxc/${P}.tar.gz
 	verify-sig? ( https://linuxcontainers.org/downloads/lxc/${P}.tar.gz.asc )"
 
 LICENSE="GPL-2 LGPL-2.1 LGPL-3" # LGPL-2.1+ is listed, but it's covered by "LGPL-3"
-SLOT="0/1.606" # SONAME liblxc.so.1 + ${PV//./} _if_ breaking ABI change while bumping.
+SLOT="0/1.700" # SONAME liblxc.so.1 + ${PV//./} _if_ breaking ABI change while bumping.
 KEYWORDS="~amd64 ~arm ~arm64 ~ppc64 ~riscv ~x86"
-IUSE="apparmor +caps doc examples io-uring man pam seccomp selinux ssl systemd test +tools"
+IUSE="apparmor +caps doc examples io-uring landlock man pam seccomp selinux ssl systemd test test-install +tools"
+
+REQUIRED_USE="landlock? ( seccomp )"
+RESTRICT="!test? ( test )"
 
 RDEPEND="acct-group/lxc
 	acct-user/lxc
@@ -37,8 +40,6 @@ BDEPEND="virtual/pkgconfig
 	doc? ( app-text/doxygen )
 	man? ( app-text/docbook2X )
 	verify-sig? ( sec-keys/openpgp-keys-linuxcontainers )"
-
-RESTRICT="!test? ( test )"
 
 CONFIG_CHECK="~!NETPRIO_CGROUP
 	~CGROUPS
@@ -73,7 +74,14 @@ VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/linuxcontainers.asc
 
 DOCS=( AUTHORS MAINTAINERS README.md doc/FAQ.txt )
 
+PATCHES=(
+	"${FILESDIR}"/lxc-7.0.0-glibc-2.43-const-fix.patch
+)
+
 pkg_setup() {
+	if use landlock ; then
+		WARNING_SECURITY_LANDLOCK="CONFIG_SECURITY_LANDLOCK: needed with landlock"
+	fi
 	linux-info_pkg_setup
 }
 
@@ -99,12 +107,14 @@ src_configure() {
 		$(meson_use doc api-docs)
 		$(meson_use examples)
 		$(meson_use io-uring io-uring-event-loop)
+		$(meson_use landlock landlock-monitor)
 		$(meson_use man)
 		$(meson_use pam pam-cgroup)
 		$(meson_use seccomp)
 		$(meson_use selinux)
 		$(meson_use ssl openssl)
-		$(meson_use test tests)
+		$(meson_use test-install tests)
+		$(meson_use $(usex test test test-install) tests)
 		$(meson_use tools)
 
 		$(usex systemd -Ddbus=true -Ddbus=false)
@@ -120,6 +130,115 @@ src_configure() {
 	use tools && local emesonargs+=( -Dcapabilities=true )
 
 	meson_src_configure
+}
+
+src_test() {
+	# tests not hooked into meson test
+	# See:
+	# https://github.com/lxc/lxc/blob/main/.github/workflows/tests.yml
+	# https://github.com/lxc/lxc-ci/blob/main/deps/lxc-exercise
+
+	local -a skip_tests=(
+		# problematic tests per upstream
+		lxc-test-concurrent
+		lxc-test-share-ns
+		# skipped by upstream for containers
+		lxc-test-apparmor
+		lxc-test-device-add-remove
+		lxc-test-reboot
+		lxc-test-unpriv
+		lxc-test-usernic
+		# Skips due to required arguments
+		lxc-test-may-control
+		# Required apt and messes with system users
+		lxc-test-usernic-2
+		# Tries to mount kernel module + snaps
+		lxc-test-snapdeps
+		# Unpriviledged containers need to touch uid mappings + root chown
+		lxc-test-autostart
+		lxc-test-cloneconfig
+		lxc-test-createconfig
+		lxc-test-cve-2019-5736
+		lxc-test-destroytest
+		lxc-test-exit-code
+		lxc-test-lxc-attach
+		lxc-test-no-new-privs
+		lxc-test-procsys
+		lxc-test-rootfs
+		# Wants to create a symlink in /var/lib
+		lxc-test-symlink
+		# Must run as root
+		lxc-test-checkpoint-restore
+		# failed to create container
+		lxc-test-clonetest
+		lxc-test-console-log
+		lxc-test-createtest
+		lxc-test-get_item
+		lxc-test-rootfs-options
+		lxc-test-shutdowntest
+		lxc-test-snapshot
+		lxc-test-sys-mixed
+		lxc-test-sysctls
+		# need allocated subuids, subgids
+		lxc-test-api-reboot
+		lxc-test-attach
+		lxc-test-capabilities
+		lxc-test-proc-pid
+		lxc-test-saveconfig
+		lxc-test-shortlived
+		lxc-test-startone
+		lxc-test-state-server
+		lxc-test-usernsexec
+		# failed to set config
+		lxc-test-parse-config-file
+		# failed to mount
+		lxc-test-mount-injection
+		# could not unshare mount namespace
+		lxc-test-utils
+		# filename not created
+		lxc-test-locktests
+		# config path needs to match
+		lxc-test-containertests
+		# wants a configured network interface
+		lxc-test-apparmor-mount
+	)
+	if use !apparmor; then
+		skip_tests+=(
+			lxc-test-apparmor-generated
+		)
+	fi
+
+	mkdir -p "${HOME}"/.config/lxc || die
+	touch "${HOME}"/.config/lxc/default.conf || die
+
+	# silence complaints about unset XDG_RUNTIME_DIR
+	xdg_environment_reset
+
+	local -a passes_tests=()
+	local -a failed_tests=()
+	local ret testfile
+	pushd "${BUILD_DIR}"/src/tests >/dev/null || die
+	for testfile in $(find . -maxdepth 1 -name "lxc-test-*" -type f); do
+		if [[ ${skip_tests[@]} =~ ${testfile#./} ]]; then
+			continue
+		fi
+		einfo "Running ${testfile}"
+		"${testfile}"
+		ret="${?}"
+		if [[ ${ret} == 0 ]]; then
+			einfo "${testfile} passed"
+			passed_tests+=( "${testfile#./}" )
+		else
+			eerror "${testfile} failed"
+			failed_tests+=( "${testfile#./}" )
+		fi
+	done
+	popd >/dev/null || die
+
+	einfo "Tests passed: ${passed_tests[@]}"
+	if [[ ${#failed_tests[@]} -gt 0 ]]; then
+		die "Tests failed: ${failed_tests[@]}"
+	fi
 }
 
 src_install() {
@@ -157,6 +276,10 @@ src_install() {
 	if ! use apparmor; then
 		sed -i '/lxc-apparmor-load/d' "${D}$(systemd_get_systemunitdir)/lxc.service" ||
 			die "Failed to remove apparmor references from lxc.service systemd unit."
+	fi
+
+	if use !test-install; then
+		find "${ED}"/usr/bin -name "lxc-test-*" -delete || die
 	fi
 }
 
