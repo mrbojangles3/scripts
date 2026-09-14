@@ -6,7 +6,7 @@ EAPI=8
 DISTUTILS_USE_PEP517=standalone
 PYPI_PN=${PN#ensurepip-}
 # PYTHON_COMPAT used only for testing
-PYTHON_COMPAT=( python3_{11..14} pypy3_11 )
+PYTHON_COMPAT=( python3_{12..15} )
 PYTHON_REQ_USE="xml(+)"
 
 inherit distutils-r1 pypi
@@ -111,16 +111,9 @@ python_test() {
 		# TODO
 		setuptools/tests/test_config_discovery.py::TestDiscoverPackagesAndPyModules::test_py_modules_when_wheel_dir_is_cwd
 		'setuptools/tests/test_egg_info.py::TestEggInfo::test_requires[setup_requires_with_markers]'
+		# broken by scikit-build-core somehow
+		'setuptools/tests/test_extern.py::test_distribution_picklable'
 	)
-
-	case ${EPYTHON} in
-		pypy3.11)
-			EPYTEST_DESELECT+=(
-				# fails and breaks other tests
-				setuptools/tests/test_editable_install.py
-			)
-			;;
-	esac
 
 	local -x PRE_BUILT_SETUPTOOLS_WHEEL=${DISTUTILS_WHEEL_PATH}
 	epytest -o tmp_path_retention_policy=all \
