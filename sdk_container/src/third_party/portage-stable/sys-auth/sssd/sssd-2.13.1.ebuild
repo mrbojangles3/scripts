@@ -16,7 +16,7 @@ HOMEPAGE="https://github.com/SSSD/sssd"
 if [[ ${PV} != 9999 ]]; then
 	SRC_URI="https://github.com/SSSD/sssd/releases/download/${PV}/${P}.tar.gz
 		https://github.com/SSSD/sssd/releases/download/${PV}/${P}.tar.gz.asc"
-	KEYWORDS="amd64 ~arm ~arm64 ~ppc ~ppc64 ~riscv ~sparc x86"
+	KEYWORDS="amd64 ~arm ~arm64 ~ppc64 ~sparc x86"
 else
 	inherit git-r3
 	EGIT_REPO_URI="https://github.com/SSSD/sssd.git"
@@ -26,7 +26,7 @@ fi
 LICENSE="GPL-3"
 SLOT="0"
 IUSE="doc +netlink nfsv4 nls openid passkey python samba selinux systemd systemtap test"
-REQUIRED_USE="python? ( ${PYTHON_REQUIRED_USE} )"
+REQUIRED_USE="python? ( ${PYTHON_REQUIRED_USE} ) test? ( openid )"
 RESTRICT="!test? ( test )"
 
 DEPEND="
@@ -45,7 +45,7 @@ DEPEND="
 	net-fs/cifs-utils[acl]
 	>=sys-apps/dbus-1.6
 	>=sys-apps/keyutils-1.5:=
-	sys-libs/libcap
+	sys-libs/libcap:=[${MULTILIB_USEDEP}]
 	>=sys-libs/pam-0-r1[${MULTILIB_USEDEP}]
 	>=sys-libs/talloc-2.0.7
 	>=sys-libs/tdb-1.2.9
@@ -194,6 +194,11 @@ src_prepare() {
 src_configure() {
 	local native_dbus_cflags=$($(tc-getPKG_CONFIG) --cflags dbus-1 || die)
 
+	# Workaround for bug #938302
+	if use systemtap && has_version "dev-debug/systemtap[-dtrace-symlink(+)]" ; then
+		export DTRACE="${BROOT}"/usr/bin/stap-dtrace
+	fi
+
 	multilib-minimal_src_configure
 }
 
@@ -238,7 +243,7 @@ multilib_src_configure() {
 		--with-sudo
 		$(multilib_native_with autofs)
 		$(multilib_native_with ssh)
-		$(use_with openid oidc-child)
+		$(multilib_native_use_with openid oidc-child)
 		$(multilib_native_with passkey)
 		--with-subid
 		$(use_enable systemtap)
@@ -265,6 +270,7 @@ multilib_src_configure() {
 			{DHASH,UNISTRING,INI_CONFIG_V{0,1,1_1,1_3}}_{CFLAGS,LIBS}=' '
 			{PCRE,CARES,SYSTEMD_LOGIN,SASL,DBUS,CRYPTO,P11_KIT}_{CFLAGS,LIBS}=' '
 			{NDR_NBT,SAMBA_UTIL,SMBCLIENT,NDR_KRB5PAC,JANSSON}_{CFLAGS,LIBS}=' '
+			JOURNALD_{CFLAGS,LIBS}=' '
 
 			# use native include path for dbus (needed for build)
 			DBUS_CFLAGS="${native_dbus_cflags}"
