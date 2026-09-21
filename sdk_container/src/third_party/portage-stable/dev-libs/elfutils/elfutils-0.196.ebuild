@@ -21,14 +21,14 @@ else
 	SRC_URI="https://sourceware.org/elfutils/ftp/${PV}/${P}.tar.bz2"
 	SRC_URI+=" verify-sig? ( https://sourceware.org/elfutils/ftp/${PV}/${P}.tar.bz2.sig )"
 
-	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86"
+	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
 
 	BDEPEND="verify-sig? ( >=sec-keys/openpgp-keys-elfutils-20240301 )"
 fi
 
 LICENSE="|| ( GPL-2+ LGPL-3+ ) utils? ( GPL-3+ )"
 SLOT="0"
-IUSE="bzip2 +debuginfod +libarchive +lzma nls static-libs stacktrace test +utils valgrind zstd"
+IUSE="bzip2 +debuginfod +libarchive libpfm +lzma nls static-libs test +utils valgrind zstd"
 RESTRICT="!test? ( test )"
 REQUIRED_USE="debuginfod? ( libarchive )"
 
@@ -44,7 +44,7 @@ RDEPEND="
 	)
 	libarchive? ( >=app-arch/libarchive-3.1.2:= )
 	lzma? ( >=app-arch/xz-utils-5.0.5-r1[static-libs?,${MULTILIB_USEDEP}] )
-	stacktrace? ( dev-util/sysprof )
+	utils? ( libpfm? ( dev-libs/libpfm:= ) )
 	zstd? ( app-arch/zstd:=[static-libs?,${MULTILIB_USEDEP}] )
 	elibc_musl? (
 		dev-libs/libbsd
@@ -66,8 +66,7 @@ BDEPEND+="
 PATCHES=(
 	"${FILESDIR}"/${PN}-0.189-musl-aarch64-regs.patch
 	"${FILESDIR}"/${PN}-0.191-musl-macros.patch
-	"${FILESDIR}"/${P}-tests.patch
-	"${FILESDIR}"/${PN}-0.194-hurd.patch
+	"${FILESDIR}"/${PN}-0.196-skip-static-test.patch
 )
 
 src_prepare() {
@@ -79,16 +78,28 @@ src_prepare() {
 		sed -i -e '/^lib_LIBRARIES/s:=.*:=:' -e '/^%.os/s:%.o$::' lib{asm,dw,elf}/Makefile.in || die
 	fi
 
-	# TODO: Fails with some CFLAGS
+	# Fails with some CFLAGS
 	# " __divhc3: /var/tmp/portage/dev-libs/elfutils-0.193/work/elfutils-0.193-abi_x86_32.x86/tests/funcretval:
 	#	dwfl_module_return_value_location: cannot handle DWARF type description"
 	printf "#!/bin/sh\nexit 77" > tests/run-native-test.sh || die
-	# TODO: Fails for abi_x86_32 w/ DT_RELR
+	# Fails for abi_x86_32 w/ DT_RELR
 	# "section [14] '.rel.plt': relocation 55: relocation type invalid for the file type"
 	printf "#!/bin/sh\nexit 77" > tests/run-elflint-self.sh || die
 	printf "#!/bin/sh\nexit 77" > tests/run-reverse-sections-self.sh || die
-	# TODO: Fails with SFrames
+	# Fails with SFrames
 	printf "#!/bin/sh\nexit 77" > tests/run-strip-strmerge.sh || die
+	# Fails under sandbox
+	cat <<-EOF > tests/dwfl-proc-attach.c || die
+	int main() {
+		return 77;
+	}
+	EOF
+	# Requires static-libs
+	cat <<-EOF > tests/elf-from-memory.c || die
+	int main() {
+		return 77;
+	}
+	EOF
 
 	# https://sourceware.org/PR23914
 	sed -i 's:-Werror::' */Makefile.in || die
@@ -109,6 +120,8 @@ src_configure() {
 multilib_src_configure() {
 	unset LEX YACC
 
+	export ac_cv_header_perfmon_pfmlib_perf_event_h=$(multilib_native_usex libpfm)
+	export ac_cv_lib_pfm_pfm_get_os_event_encoding=$(multilib_native_usex libpfm)
 	# Only for IMA verification of RPMs
 	export ac_cv_lib_rpm_headerGet=no
 
@@ -118,7 +131,7 @@ multilib_src_configure() {
 		# Could do dummy if needed? We could also split libdebuginfod
 		# (client support) into its own USE if required.
 		$(multilib_native_use_enable debuginfod libdebuginfod)
-		$(multilib_native_use_enable stacktrace)
+		$(multilib_native_use_enable utils stackprof)
 		$(use_enable valgrind valgrind-annotations)
 
 		# Explicitly disable thread safety, it's not recommended by upstream
