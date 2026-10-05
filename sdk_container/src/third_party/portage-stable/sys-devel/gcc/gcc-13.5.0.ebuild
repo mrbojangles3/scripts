@@ -9,6 +9,8 @@ EAPI=8
 TOOLCHAIN_HAS_TESTS=1
 PATCH_GCC_VER="13.3.0"
 MUSL_GCC_VER="13.3.0"
+PATCH_VER="9"
+MUSL_VER="3"
 PYTHON_COMPAT=( python3_{11..14} )
 
 if [[ ${PV} == *.9999 ]] ; then
@@ -40,6 +42,7 @@ if tc_is_live ; then
 elif [[ -z ${TOOLCHAIN_USE_GIT_PATCHES} ]] ; then
 	# Don't keyword live ebuilds
 	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
+	:;
 fi
 
 if [[ ${CATEGORY} != cross-* ]] ; then
