@@ -6,12 +6,12 @@ EAPI="8"
 VERIFY_SIG_METHOD=sigstore
 WANT_LIBTOOL="none"
 
-inherit autotools check-reqs flag-o-matic linux-info
+inherit autotools check-reqs eapi9-ver flag-o-matic linux-info
 inherit multiprocessing pax-utils python-utils-r1 toolchain-funcs
 inherit verify-sig
 
 REAL_PV=${PV#0.}
-MY_PV=${REAL_PV}
+MY_PV=${REAL_PV/_}
 MY_P="Python-${MY_PV%_p*}"
 PYVER="$(ver_cut 2-3)t"
 PATCHSET="python-gentoo-patches-${MY_PV}"
@@ -80,6 +80,7 @@ DEPEND="
 	test? (
 		dev-python/ensurepip-pip
 		dev-python/ensurepip-setuptools
+		dev-python/ensurepip-wheel
 	)
 	valgrind? ( dev-debug/valgrind )
 "
@@ -123,6 +124,27 @@ declare -rgA PYTHON_KERNEL_CHECKS=(
 pkg_pretend() {
 	if use pgo || use test; then
 		check-reqs_pkg_pretend
+	fi
+
+	ewarn "Freethreading build is considered experimental upstream.  Using it"
+	ewarn "could lead to unexpected breakage, including race conditions"
+	ewarn "and crashes, respectively.  Please do not file Gentoo bugs, unless"
+	ewarn "you can reproduce the problem with dev-lang/python.  Instead,"
+	ewarn "please consider reporting freethreading problems upstream."
+
+	if [[ ${MERGE_TYPE} != buildonly ]] && ver_replacing -lt 0.3.15.0_beta4; then
+		ewarn
+		ewarn "Python 3.15.0b4 has broken its extension ABI.  The extensions built"
+		ewarn "with older versions may crash at runtime or worse after upgrading."
+		ewarn "A rebuild is recommended after the merge is complete, e.g. using:"
+		ewarn
+		ewarn "  emerge -1v \$(find /usr/lib/python3.15t/site-packages -name '*.cpython-315t-*.so')"
+		ewarn
+		ewarn "Note that if you enabled both python3_15 and python3_15t, then"
+		ewarn "the 3.15 rebuild should cover all 3.15t packages as well."
+		ewarn "If you do not wish to perform the rebuild at the time, it is"
+		ewarn "recommended to abort the upgrade."
+		ewarn
 	fi
 }
 
@@ -532,9 +554,14 @@ src_test() {
 
 src_install() {
 	local libdir=${ED}/usr/lib/python${PYVER}
+	local build_dir=$(<pybuilddir.txt)
 
 	# -j1 hack for now for bug #843458
 	emake -j1 DESTDIR="${D}" TEST_MODULES=no altinstall
+
+	# Install build-details.json manually because it was randomly removed
+	# from altinstall in https://github.com/python/cpython/pull/142269.
+	cp "${build_dir}"/build-details.json "${libdir}"/ || die
 
 	# Fix collisions between different slots of Python.
 	rm "${ED}/usr/$(get_libdir)/libpython3.so" || die
@@ -621,5 +648,18 @@ src_install() {
 	# idle
 	if use tk; then
 		ln -s "../../../bin/idle${PYVER}" "${scriptdir}/idle" || die
+	fi
+}
+
+pkg_postinst() {
+	if ver_replacing -lt 0.3.15.0_beta4; then
+		ewarn "Python 3.15.0b4 has broken its extension ABI.  The extensions built"
+		ewarn "with older versions may crash at runtime or worse.  To prevent this,"
+		ewarn "please rebuild all extensions using the versoned ABI, e.g. using:"
+		ewarn
+		ewarn "  emerge -1v \$(find /usr/lib/python3.15t/site-packages -name '*.cpython-315t-*.so')"
+		ewarn
+		ewarn "Note that if you enabled both python3_15 and python3_15t, then"
+		ewarn "the 3.15 rebuild should cover all 3.15t packages already."
 	fi
 }

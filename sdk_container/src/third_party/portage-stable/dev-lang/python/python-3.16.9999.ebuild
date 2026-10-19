@@ -5,17 +5,13 @@ EAPI="8"
 
 LLVM_COMPAT=( 21 )
 LLVM_OPTIONAL=1
-VERIFY_SIG_METHOD=sigstore
 WANT_LIBTOOL="none"
 
-inherit autotools check-reqs eapi9-ver flag-o-matic linux-info llvm-r2
+inherit autotools check-reqs eapi9-ver flag-o-matic git-r3 linux-info llvm-r2
 inherit multiprocessing pax-utils python-utils-r1 toolchain-funcs
-inherit verify-sig
 
-MY_PV=${PV/_}
-MY_P="Python-${MY_PV%_p*}"
 PYVER=$(ver_cut 1-2)
-PATCHSET="python-gentoo-patches-${MY_PV}"
+PATCHSET="python-gentoo-patches-3.16.0a1"
 
 DESCRIPTION="An interpreted, interactive, object-oriented programming language"
 HOMEPAGE="
@@ -23,13 +19,9 @@ HOMEPAGE="
 	https://github.com/python/cpython/
 "
 SRC_URI="
-	https://www.python.org/ftp/python/${PV%%_*}/${MY_P}.tar.xz
 	https://distfiles.gentoo.org/pub/proj/python/patchsets/${PYVER%t}/${PATCHSET}.tar.xz
-	verify-sig? (
-		https://www.python.org/ftp/python/${PV%%_*}/${MY_P}.tar.xz.sigstore
-	)
 "
-S="${WORKDIR}/${MY_P}"
+EGIT_REPO_URI="https://github.com/python/cpython.git"
 
 LICENSE="PSF-2"
 SLOT="${PYVER}"
@@ -110,10 +102,6 @@ PDEPEND="
 	ensurepip? ( dev-python/ensurepip-pip )
 "
 
-# https://www.python.org/downloads/metadata/sigstore/
-VERIFY_SIG_CERT_IDENTITY=hugo@python.org
-VERIFY_SIG_CERT_OIDC_ISSUER=https://github.com/login/oauth
-
 # large file tests involve a 2.5G file being copied (duplicated)
 CHECKREQS_DISK_BUILD=5500M
 
@@ -175,9 +163,7 @@ pkg_setup() {
 }
 
 src_unpack() {
-	if use verify-sig; then
-		verify-sig_verify_detached "${DISTDIR}"/${MY_P}.tar.xz{,.sigstore}
-	fi
+	git-r3_src_unpack
 	default
 }
 
@@ -425,7 +411,6 @@ src_configure() {
 		--without-ensurepip
 		--without-lto
 		--with-system-expat
-		--with-system-libmpdec
 		--with-platlibdir=lib
 		--with-pkg-config=yes
 		--with-wheel-pkg-dir="${EPREFIX}"/usr/lib/python/ensurepip
@@ -509,10 +494,11 @@ src_compile() {
 	export GENTOO_CPYTHON_BUILD=1
 
 	if use pgo ; then
-		# bug 660358
-		local -x COLUMNS=80
+		# https://bugs.gentoo.org/660358
 		local -x PYTHONDONTWRITEBYTECODE=
 		local -x TMPDIR=/var/tmp
+		# https://bugs.gentoo.org/984547
+		unset COLUMNS
 	fi
 
 	# also need to clear the flags explicitly here or they end up
@@ -549,10 +535,11 @@ src_test() {
 		"${COMMON_TEST_SKIPS[@]}"
 	)
 
-	# bug 660358
-	local -x COLUMNS=80
+	# https://bugs.gentoo.org/660358
 	local -x PYTHONDONTWRITEBYTECODE=
 	local -x TMPDIR=/var/tmp
+	# https://bugs.gentoo.org/984547
+	unset COLUMNS
 
 	nonfatal emake -Onone test EXTRATESTOPTS="${test_opts[*]}" \
 		CPPFLAGS= CFLAGS= LDFLAGS= < /dev/tty
@@ -606,7 +593,7 @@ src_install() {
 
 	ln -s ../python/EXTERNALLY-MANAGED "${libdir}/EXTERNALLY-MANAGED" || die
 
-	dodoc Misc/{ACKS,HISTORY,NEWS}
+	dodoc Misc/{ACKS,HISTORY}
 
 	if use examples; then
 		docinto examples
