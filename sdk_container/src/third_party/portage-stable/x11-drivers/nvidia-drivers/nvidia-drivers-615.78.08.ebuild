@@ -4,10 +4,12 @@
 EAPI=8
 
 MODULES_OPTIONAL_IUSE=+modules
-inherit desktop dot-a eapi9-pipestatus eapi9-ver flag-o-matic linux-mod-r1
-inherit readme.gentoo-r1 systemd toolchain-funcs unpacker user-info
+PYTHON_COMPAT=( python3_{12..15} )
+inherit desktop dot-a eapi9-pipestatus eapi9-ver flag-o-matic
+inherit linux-mod-r1 python-single-r1 readme.gentoo-r1 systemd
+inherit toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=7.2
+MODULES_KERNEL_MAX=7.3
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -27,8 +29,9 @@ LICENSE="
 	curl openssl public-domain
 "
 SLOT="0/${PV%%.*}"
-KEYWORDS="-* amd64 ~arm64"
+KEYWORDS="-* ~amd64 ~arm64"
 IUSE="+X abi_x86_32 abi_x86_64 persistenced powerd +static-libs +tools wayland"
+REQUIRED_USE="${PYTHON_REQUIRED_USE}"
 
 COMMON_DEPEND="
 	acct-group/video
@@ -56,10 +59,12 @@ COMMON_DEPEND="
 # (may use one or the other depending on setup)
 RDEPEND="
 	${COMMON_DEPEND}
+	${PYTHON_DEPS}
 	|| (
 		dev-libs/openssl-compat:3
 		dev-libs/openssl:0/3
 	)
+	sys-devel/gcc:*
 	sys-libs/glibc
 	X? (
 		media-libs/libglvnd[X,abi_x86_32(-)?]
@@ -92,6 +97,7 @@ DEPEND="
 	)
 "
 BDEPEND="
+	${PYTHON_DEPS}
 	sys-devel/m4
 	virtual/pkgconfig
 "
@@ -145,6 +151,7 @@ pkg_setup() {
 	ignoring this."
 
 	linux-mod-r1_pkg_setup
+	python-single-r1_pkg_setup
 }
 
 src_prepare() {
@@ -167,6 +174,18 @@ src_prepare() {
 	# makefile attempts to install wayland library even if not built
 	use wayland || sed -i 's/ WAYLAND_LIB_install$//' \
 		nvidia-settings/src/Makefile || die
+
+	# temporary dirty workaround for clang being stricter than gcc,
+	# reproducing requires a kernel with CONFIG_OF_GPIO enabled
+	# nv-linux.h:1737:51: error: passing 'const struct gpio_device *' [...]
+	if CC=${KERNEL_CC} tc-is-clang; then
+		sed -e 's/-Wno-error/& -Wno-error=incompatible-pointer-types-discards-qualifiers/' \
+			-i kernel-module-source/kernel-open/Kbuild || die
+	fi
+
+	# .py can be called by the shell script which ignores the shebang
+	sed -i "s/python3/${EPYTHON}/g" nvidia-bug-report.sh || die
+	python_fix_shebang nvidia-networking-bug-report.py
 }
 
 src_compile() {
@@ -332,7 +351,7 @@ documentation that is installed alongside this README."
 		linux-mod-r1_src_install
 
 		insinto /etc/modprobe.d
-		newins "${FILESDIR}"/nvidia-595.conf nvidia.conf
+		newins "${FILESDIR}"/nvidia-615.conf nvidia.conf
 
 		# used for gpu verification with binpkgs (not kept, see pkg_preinst)
 		insinto /usr/share/nvidia
@@ -425,6 +444,7 @@ documentation that is installed alongside this README."
 	# MODULE:installer non-skipped extras
 	# (sleep services skipped, obsoleted by NVreg_UseKernelSuspendNotifiers=1)
 	dobin nvidia-bug-report.sh
+	dobin nvidia-networking-bug-report.py
 
 	insinto /usr/share/nvidia/files.d
 	doins sandboxutils-filelist.json
