@@ -5,8 +5,8 @@ EAPI=8
 
 # please bump dev-python/ensurepip-pip along with this package!
 
-DISTUTILS_USE_PEP517=flit
-PYTHON_TESTED=( pypy3_11 python3_{11..14} )
+DISTUTILS_USE_PEP517=flit-core
+PYTHON_TESTED=( python3_{12..15} )
 PYTHON_COMPAT=( "${PYTHON_TESTED[@]}" )
 PYTHON_REQ_USE="ssl(+),threads(+)"
 
@@ -74,10 +74,8 @@ BDEPEND="
 
 python_prepare_all() {
 	local PATCHES=(
-		# remove coverage & pytest-subket wheel expectation from test suite
-		"${FILESDIR}/pip-26.0-test-wheels.patch"
-		# prepare to unbundle dependencies
-		"${FILESDIR}/pip-25.0.1-unbundle.patch"
+		# prepare to unbundle dependencies and remove redundant test wheels
+		"${FILESDIR}/pip-26.2.1-unbundle.patch"
 	)
 
 	distutils-r1_python_prepare_all
@@ -92,7 +90,7 @@ python_prepare_all() {
 
 	if use test; then
 		local wheels=(
-			"${BROOT}"/usr/lib/python/ensurepip/{setuptools,wheel}-*.whl
+			"${BROOT}"/usr/lib/python/ensurepip/setuptools-*.whl
 			"${DISTDIR}/$(pypi_wheel_name flit-core "${FLIT_CORE_PV}")"
 		)
 		mkdir tests/data/common_wheels/ || die
@@ -154,6 +152,14 @@ python_test() {
 		tests/functional/test_python_option.py::test_python_interpreter
 		tests/functional/test_uninstall.py::test_basic_uninstall
 		tests/functional/test_uninstall.py::test_uninstall_non_local_distutils
+		tests/functional/test_install.py::test_install_warns_on_unexpected_post_install_import
+		# TODO
+		tests/functional/test_build_env.py::test_build_env_can_still_access_python_tools_on_system_path
+		tests/functional/test_build_env.py::test_build_env_console_scripts_use_venv_python[subprocess]
+		tests/functional/test_build_env.py::test_build_env_isolation[venv-inprocess]
+		tests/functional/test_build_env.py::test_build_env_isolation[venv-subprocess]
+		tests/functional/test_build_env.py::test_build_env_requirements_check[venv]
+		tests/functional/test_self_update.py::test_self_update_editable
 	)
 	local EPYTEST_IGNORE=(
 		# from upstream options
@@ -161,22 +167,6 @@ python_test() {
 		# requires proxy.py
 		tests/functional/test_proxy.py
 	)
-
-	case ${EPYTHON} in
-		pypy3*)
-			EPYTEST_DESELECT+=(
-				# unexpected tempfiles?
-				tests/functional/test_install_config.py::test_do_not_prompt_for_authentication
-				tests/functional/test_install_config.py::test_prompt_for_authentication
-				# wrong path
-				tests/functional/test_install.py::test_install_editable_with_prefix_setup_py
-				# wrong exception assumptions
-				tests/unit/test_utils_datetime.py::test_parse_iso_datetime_invalid
-				# TODO
-				tests/functional/test_install.py::test_install_warns_on_unexpected_post_install_import
-			)
-			;;
-	esac
 
 	if ! has_version "dev-python/cryptography[${PYTHON_USEDEP}]"; then
 		EPYTEST_DESELECT+=(
