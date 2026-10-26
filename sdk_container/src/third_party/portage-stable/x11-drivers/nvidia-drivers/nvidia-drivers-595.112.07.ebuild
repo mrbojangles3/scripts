@@ -7,7 +7,7 @@ MODULES_OPTIONAL_IUSE=+modules
 inherit desktop dot-a eapi9-pipestatus eapi9-ver flag-o-matic linux-mod-r1
 inherit readme.gentoo-r1 systemd toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=7.2
+MODULES_KERNEL_MAX=7.3
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -60,7 +60,6 @@ RDEPEND="
 		dev-libs/openssl-compat:3
 		dev-libs/openssl:0/3
 	)
-	sys-devel/gcc:*
 	sys-libs/glibc
 	X? (
 		media-libs/libglvnd[X,abi_x86_32(-)?]
@@ -168,14 +167,6 @@ src_prepare() {
 	# makefile attempts to install wayland library even if not built
 	use wayland || sed -i 's/ WAYLAND_LIB_install$//' \
 		nvidia-settings/src/Makefile || die
-
-	# temporary dirty workaround for clang being stricter than gcc,
-	# reproducing requires a kernel with CONFIG_OF_GPIO enabled
-	# nv-linux.h:1737:51: error: passing 'const struct gpio_device *' [...]
-	if CC=${KERNEL_CC} tc-is-clang; then
-		sed -e 's/-Wno-error/& -Wno-error=incompatible-pointer-types-discards-qualifiers/' \
-			-i kernel-module-source/kernel-open/Kbuild || die
-	fi
 }
 
 src_compile() {
@@ -341,7 +332,7 @@ documentation that is installed alongside this README."
 		linux-mod-r1_src_install
 
 		insinto /etc/modprobe.d
-		newins "${FILESDIR}"/nvidia-610.conf nvidia.conf
+		newins "${FILESDIR}"/nvidia-595.conf nvidia.conf
 
 		# used for gpu verification with binpkgs (not kept, see pkg_preinst)
 		insinto /usr/share/nvidia
