@@ -3,30 +3,24 @@
 
 EAPI=8
 
-inherit go-env go-module linux-info optfeature systemd toolchain-funcs verify-sig
+inherit go-env go-module linux-info optfeature shell-completion sysroot systemd verify-sig
 
 DESCRIPTION="Modern, secure and powerful system container and virtual machine manager"
 HOMEPAGE="https://linuxcontainers.org/incus/introduction/ https://github.com/lxc/incus"
-
-if [[ "${PV}" == 9999* ]]; then
-	inherit git-r3
-	EGIT_REPO_URI="https://github.com/lxc/incus.git"
-else
-	SRC_URI="https://linuxcontainers.org/downloads/incus/${P}.tar.xz
-		verify-sig? ( https://linuxcontainers.org/downloads/incus/${P}.tar.xz.asc )"
-	KEYWORDS="~amd64 ~arm64"
-fi
+SRC_URI="https://linuxcontainers.org/downloads/incus/${P}.tar.xz
+	verify-sig? ( https://linuxcontainers.org/downloads/incus/${P}.tar.xz.asc )"
 
 LICENSE="Apache-2.0 BSD LGPL-3 MIT"
-SLOT="0/stable"
+SLOT="0/lts"
+KEYWORDS="~amd64 ~arm64"
 IUSE="apparmor fuidshift nls qemu selinux"
 
 DEPEND="acct-group/incus
 	acct-group/incus-admin
 	app-arch/xz-utils
-	>=app-containers/lxc-5.0.0:=[apparmor?,seccomp(+)]
+	>=app-containers/lxc-6.0.0:=[apparmor?,seccomp(+)]
 	dev-db/sqlite:3
-	>=dev-libs/cowsql-1.15.7
+	>=dev-libs/cowsql-1.15.9
 	dev-libs/lzo
 	>=dev-libs/raft-0.22.1:=[lz4]
 	>=dev-util/xdelta-3.0[lzma(+)]
@@ -39,7 +33,7 @@ RDEPEND="${DEPEND}
 	net-firewall/nftables[json]
 	sys-apps/iproute2
 	sys-fs/fuse:*
-	>=sys-fs/lxcfs-5.0.0
+	>=sys-fs/lxcfs-6.0.0
 	sys-fs/squashfs-tools[lzma]
 	virtual/acl
 	apparmor? ( sec-policy/apparmor-profiles )
@@ -87,15 +81,14 @@ QA_PREBUILT="/usr/bin/incus
 	/usr/bin/incus-migrate
 	/usr/bin/lxc-to-incus
 	/usr/sbin/fuidshift
-	/usr/sbin/incusd"
+	/usr/sbin/incusd
+	/usr/sbin/lxd-to-incus"
 
 VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/linuxcontainers.asc
 
 # The testsuite must be run as root.
 # make: *** [Makefile:156: check] Error 1
 RESTRICT="test"
-
-GOPATH="${S}/_dist"
 
 src_unpack() {
 	if [[ "${PV}" == 9999* ]]; then
@@ -109,8 +102,6 @@ src_unpack() {
 }
 
 src_prepare() {
-	export GOPATH="${S}/_dist"
-
 	default
 
 	sed -i \
@@ -149,7 +140,7 @@ src_compile() {
 	export GOPATH="${S}/_dist"
 	export CGO_LDFLAGS_ALLOW="-Wl,-z,now"
 
-	for k in incus-benchmark incus-simplestreams incus-user incus lxc-to-incus; do
+	for k in incus-benchmark incus-simplestreams incus-user incus lxc-to-incus lxd-to-incus ; do
 		ego install -v -x "${S}/cmd/${k}"
 	done
 
@@ -162,29 +153,35 @@ src_compile() {
 	# Needs to be built statically
 	CGO_ENABLED=0 go install -v -tags agent,netgo,static -buildmode default "${S}"/cmd/incus-migrate
 
-	local bindir=$(incus_get_bindir "$(go-env_goarch "${CBUILD}")")
+	bindir="${GOPATH}/bin"
+	GOHOSTARCH=$(go-env_goarch "${CBUILD}")
+	agentbindir=$(incus_get_bindir "${GOHOSTARCH}")
 
 	# Build the VM agents, statically too
 	if use amd64 ; then
-		GOARCH=amd64 CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.linux.x86_64 -v \
+		GOARCH=amd64 CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.linux.x86_64 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
-		GOARCH=386 CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.linux.i686 -v \
+		GOARCH=386 CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.linux.i686 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
-		GOARCH=amd64 GOOS=windows CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.windows.x86_64 -v \
+		GOARCH=amd64 GOOS=windows CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.windows.x86_64 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
-		GOARCH=386 GOOS=windows CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.windows.i686 -v \
+		GOARCH=386 GOOS=windows CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.windows.i686 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
 	elif use arm64 ; then
-		GOARCH=arm64 CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.linux.aarch64 -v \
+		GOARCH=arm64 CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.linux.aarch64 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
-		GOARCH=arm64 GOOS=windows CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.windows.aarch64 -v \
+		GOARCH=arm64 GOOS=windows CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.windows.aarch64 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
 	else
 		echo "No VM support for this arch."
-		return
 	fi
 
 	use nls && emake build-mo
+
+	# Generate shell completion files.
+	sysroot_try_run_prefixed "${bindir}"/incus completion bash > incus.bash || die
+	sysroot_try_run_prefixed "${bindir}"/incus completion fish > incus.fish || die
+	sysroot_try_run_prefixed "${bindir}"/incus completion zsh > incus.zsh || die
 }
 
 src_test() {
@@ -192,15 +189,10 @@ src_test() {
 }
 
 src_install() {
-	export GOPATH="${S}/_dist"
-
-	export GOHOSTARCH=$(go-env_goarch "${CBUILD}")
-	local bindir=$(incus_get_bindir "${GOHOSTARCH}")
-
 	newsbin "${FILESDIR}"/incus-startup-0.4.sh incus-startup
 
 	# Admin tools
-	for l in incusd incus-user; do
+	for l in incusd incus-user lxd-to-incus ; do
 		dosbin "${bindir}/${l}"
 	done
 
@@ -212,14 +204,14 @@ src_install() {
 	# VM Agents
 	if use amd64 ; then
 		exeinto /usr/libexec/incus/agents
-		doexe ${bindir}/incus-agent.linux.x86_64
-		doexe ${bindir}/incus-agent.linux.i686
-		doexe ${bindir}/incus-agent.windows.x86_64
-		doexe ${bindir}/incus-agent.windows.i686
+		doexe ${agentbindir}/incus-agent.linux.x86_64
+		doexe ${agentbindir}/incus-agent.linux.i686
+		doexe ${agentbindir}/incus-agent.windows.x86_64
+		doexe ${agentbindir}/incus-agent.windows.i686
 	elif use arm64 ; then
 		exeinto /usr/libexec/incus/agents
-		doexe ${bindir}/incus-agent.linux.aarch64
-		doexe ${bindir}/incus-agent.windows.aarch64
+		doexe ${agentbindir}/incus-agent.linux.aarch64
+		doexe ${agentbindir}/incus-agent.windows.aarch64
 	fi
 
 	# fuidshift, should be moved under admin tools at some point
@@ -237,15 +229,10 @@ src_install() {
 	systemd_newunit "${FILESDIR}"/incus-user-0.4.service incus-user.service
 	systemd_newunit "${FILESDIR}"/incus-user-0.4.socket incus-user.socket
 
-	if ! tc-is-cross-compiler; then
-		# Generate and install shell completion files.
-		mkdir -p "${D}"/usr/share/{bash-completion/completions/,fish/vendor_completions.d/,zsh/site-functions/} || die
-		"${bindir}"/incus completion bash > "${D}"/usr/share/bash-completion/completions/incus || die
-		"${bindir}"/incus completion fish > "${D}"/usr/share/fish/vendor_completions.d/incus.fish || die
-		"${bindir}"/incus completion zsh > "${D}"/usr/share/zsh/site-functions/_incus || die
-	else
-		ewarn "Shell completion files not installed! Install them manually with incus completion --help"
-	fi
+	# Install shell completion files.
+	[[ -s incus.bash ]] && newbashcomp incus.bash incus
+	[[ -s incus.fish ]] && dofishcomp incus.fish
+	[[ -s incus.zsh ]] && newzshcomp incus.zsh _incus
 
 	dodoc AUTHORS
 	dodoc -r doc/*
@@ -268,9 +255,9 @@ pkg_postinst() {
 	elog
 	optfeature "OCI container images support" app-containers/skopeo app-containers/umoci
 	optfeature "support for ACME certificate issuance" app-crypt/lego
-	optfeature "btrfs storage backend" sys-fs/btrfs-progs
 	optfeature "ipv6 support" net-dns/dnsmasq[ipv6]
 	optfeature "full incus-migrate support" net-misc/rsync
+	optfeature "btrfs storage backend" sys-fs/btrfs-progs
 	optfeature "lvm2 storage backend" sys-fs/lvm2
 	optfeature "zfs storage backend" sys-fs/zfs
 	elog
