@@ -22,7 +22,7 @@ S="${WORKDIR}/${PN}1-$(ver_cut 1-3)"
 LICENSE="MIT"
 # configure.ac: "For simplicity we just bump current all the time and don't bother"
 SLOT="0/${PV}"
-KEYWORDS="amd64 arm arm64 ~loong ppc ppc64 ~riscv ~sparc x86"
+KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
 IUSE="doc gcrypt gnutls http nss +openssl static-libs test"
 RESTRICT="!test? ( test )"
 REQUIRED_USE="
@@ -57,8 +57,10 @@ BDEPEND="
 "
 
 PATCHES=(
-	"${FILESDIR}"/${PN}-1.3.0-optimisation.patch
+	"${FILESDIR}"/${PN}-1.3.13-optimisation.patch
 )
+
+QA_CONFIG_IMPL_DECL_SKIP=( memset_s ) # 985351
 
 src_unpack() {
 	if use verify-sig; then
