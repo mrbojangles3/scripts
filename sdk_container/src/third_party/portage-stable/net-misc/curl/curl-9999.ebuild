@@ -143,7 +143,7 @@ BDEPEND="
 	verify-sig? ( sec-keys/openpgp-keys-danielstenberg )
 "
 
-DOCS=( README docs/{FEATURES.md,INTERNALS.md,FAQ.md,BUGS.md,CONTRIBUTE.md} )
+DOCS=( README docs/{FEATURES.md,FAQ.md,BUGS.md,CONTRIBUTE.md} )
 
 MULTILIB_WRAPPED_HEADERS=(
 	/usr/include/curl/curlbuild.h
@@ -263,7 +263,6 @@ multilib_src_configure() {
 		$(use_enable ldap ldaps)
 		$(use_enable ldap)
 		$(use_enable pop3)
-		--disable-smb # Removed upstream in late 2026
 		$(use_with ssh libssh2) # enables scp/sftp
 		--enable-rtsp
 		$(use_enable smtp)
@@ -313,7 +312,6 @@ multilib_src_configure() {
 		--disable-sspi
 		$(use_enable static-libs static)
 		--enable-symbol-hiding
-		--enable-tls-srp
 		--disable-versioned-symbols
 	)
 
