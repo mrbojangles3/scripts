@@ -5,7 +5,7 @@ EAPI=8
 
 inherit go-env go-module systemd toolchain-funcs
 
-GIT_REVISION=fff62f14765df376e5fc36f5a8f8e795b5670f61
+GIT_REVISION=1294c24a7da8e5a793ed378161673abe94118892
 
 DESCRIPTION="A daemon to control runC"
 HOMEPAGE="https://containerd.io/"
