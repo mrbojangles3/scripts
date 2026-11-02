@@ -25,11 +25,11 @@ RDEPEND="
 	dev-python/packaging[${PYTHON_USEDEP}]
 	>=dev-python/setuptools-64[${PYTHON_USEDEP}]
 	=dev-python/vcs-versioning-2*[${PYTHON_USEDEP}]
-	>=dev-python/vcs-versioning-2.3.2[${PYTHON_USEDEP}]
+	>=dev-python/vcs-versioning-2.4.0[${PYTHON_USEDEP}]
 "
 BDEPEND="
 	=dev-python/vcs-versioning-2*[${PYTHON_USEDEP}]
-	>=dev-python/vcs-versioning-2.3.2[${PYTHON_USEDEP}]
+	>=dev-python/vcs-versioning-2.4.0[${PYTHON_USEDEP}]
 	test? (
 		dev-python/build[${PYTHON_USEDEP}]
 		dev-python/typing-extensions[${PYTHON_USEDEP}]
@@ -49,6 +49,8 @@ python_test() {
 		testing_scm/test_regressions.py::test_pip_download
 		# dependent on ruff version
 		testing_scm/test_functions.py::test_dump_version_ruff
+		# broken by installed packages adding commands
+		testing_scm/test_integration.py::test_commands_registered_only_when_inference_produced_data
 	)
 
 	if ! has_version "dev-python/pip[${PYTHON_USEDEP}]"; then
