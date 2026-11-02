@@ -3,12 +3,14 @@
 
 EAPI=8
 
-inherit toolchain-funcs flag-o-matic unpacker
+VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/pauleggert.asc
+inherit toolchain-funcs flag-o-matic unpacker verify-sig
 
 DESCRIPTION="Timezone data (/usr/share/zoneinfo) and utilities (tzselect/zic/zdump)"
 HOMEPAGE="https://www.iana.org/time-zones"
 SRC_URI="
 	https://data.iana.org/time-zones/releases/tzdb-${PV}.tar.lz
+	verify-sig? ( https://data.iana.org/time-zones/releases/tzdb-${PV}.tar.lz.asc )
 "
 S="${WORKDIR}"/tzdb-${PV}
 
@@ -16,13 +18,23 @@ LICENSE="BSD public-domain"
 SLOT="0"
 KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86 ~arm64-macos ~x64-macos ~x64-solaris"
 IUSE="nls leaps-timezone zic-slim"
+# https://lists.iana.org/hyperkitty/list/tz@iana.org/thread/CBEK3HXYBOXGD34ZFDSF64QIDT7ZWGBB/ (bug #985408)
+RESTRICT="test"
 
 DEPEND="nls? ( virtual/libintl )"
 RDEPEND="
 	${DEPEND}
 	!sys-libs/glibc[vanilla(+)]
 "
-BDEPEND="$(unpacker_src_uri_depends)"
+BDEPEND="
+	$(unpacker_src_uri_depends)
+	verify-sig? ( sec-keys/openpgp-keys-pauleggert )
+"
+
+src_unpack() {
+	use verify-sig && verify-sig_src_unpack
+	unpacker tzdb-${PV}.tar.lz
+}
 
 src_prepare() {
 	default
