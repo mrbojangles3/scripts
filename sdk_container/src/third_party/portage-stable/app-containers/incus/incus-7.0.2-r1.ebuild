@@ -3,12 +3,12 @@
 
 EAPI=8
 
-inherit go-env go-module linux-info optfeature systemd toolchain-funcs verify-sig
+inherit go-env go-module linux-info optfeature shell-completion sysroot systemd verify-sig
 
 DESCRIPTION="Modern, secure and powerful system container and virtual machine manager"
 HOMEPAGE="https://linuxcontainers.org/incus/introduction/ https://github.com/lxc/incus"
 SRC_URI="https://linuxcontainers.org/downloads/incus/${P}.tar.xz
-	https://dev.gentoo.org/~juippis/distfiles/incus-7.3-cve-commits-bgo980304.tar.xz
+	https://dev.gentoo.org/~juippis/distfiles/incus-7.6-cve-commits-bgo985260.tar.xz
 	verify-sig? ( https://linuxcontainers.org/downloads/incus/${P}.tar.xz.asc )"
 
 LICENSE="Apache-2.0 BSD LGPL-3 MIT"
@@ -44,7 +44,7 @@ RDEPEND="${DEPEND}
 		sys-apps/gptfdisk
 	)
 	selinux? ( sec-policy/selinux-incus )"
-BDEPEND=">=dev-lang/go-1.25.11
+BDEPEND=">=dev-lang/go-1.26.7
 	nls? ( sys-devel/gettext )
 	verify-sig? ( sec-keys/openpgp-keys-linuxcontainers )"
 
@@ -91,22 +91,23 @@ VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/linuxcontainers.asc
 # make: *** [Makefile:156: check] Error 1
 RESTRICT="test"
 
-GOPATH="${S}/_dist"
-
 src_unpack() {
-	if use verify-sig ; then
-		verify-sig_verify_detached "${DISTDIR}"/${P}.tar.xz{,.asc}
+	if [[ "${PV}" == 9999* ]]; then
+		git-r3_src_unpack
+		go-module_live_vendor
+		go-env_set_compile_environment
+	else
+		if use verify-sig ; then
+			verify-sig_verify_detached "${DISTDIR}"/${P}.tar.xz{,.asc}
+		fi
+		go-module_src_unpack
 	fi
-	go-module_src_unpack
 }
 
 src_prepare() {
-	export GOPATH="${S}/_dist"
-
 	default
 
-	# bgo#980304, patch multiple CVEs before 7.0.2.
-	eapply "${WORKDIR}"/incus-7.3-cve-commits-bgo980304/*.patch
+	eapply "${WORKDIR}"/incus-*-cve-commits*/*.patch
 
 	sed -i \
 		-e "s:\./configure:./configure --prefix=/usr --libdir=${EPREFIX}/usr/lib/incus:g" \
@@ -157,29 +158,35 @@ src_compile() {
 	# Needs to be built statically
 	CGO_ENABLED=0 go install -v -tags agent,netgo,static -buildmode default "${S}"/cmd/incus-migrate
 
-	local bindir=$(incus_get_bindir "$(go-env_goarch "${CBUILD}")")
+	bindir="${GOPATH}/bin"
+	GOHOSTARCH=$(go-env_goarch "${CBUILD}")
+	agentbindir=$(incus_get_bindir "${GOHOSTARCH}")
 
 	# Build the VM agents, statically too
 	if use amd64 ; then
-		GOARCH=amd64 CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.linux.x86_64 -v \
+		GOARCH=amd64 CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.linux.x86_64 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
-		GOARCH=386 CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.linux.i686 -v \
+		GOARCH=386 CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.linux.i686 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
-		GOARCH=amd64 GOOS=windows CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.windows.x86_64 -v \
+		GOARCH=amd64 GOOS=windows CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.windows.x86_64 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
-		GOARCH=386 GOOS=windows CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.windows.i686 -v \
+		GOARCH=386 GOOS=windows CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.windows.i686 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
 	elif use arm64 ; then
-		GOARCH=arm64 CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.linux.aarch64 -v \
+		GOARCH=arm64 CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.linux.aarch64 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
-		GOARCH=arm64 GOOS=windows CGO_ENABLED=0 ego build -o "${bindir}"/incus-agent.windows.aarch64 -v \
+		GOARCH=arm64 GOOS=windows CGO_ENABLED=0 ego build -o "${agentbindir}"/incus-agent.windows.aarch64 -v \
 			-tags agent,netgo,static -buildmode default "${S}"/cmd/incus-agent
 	else
 		echo "No VM support for this arch."
-		return
 	fi
 
 	use nls && emake build-mo
+
+	# Generate shell completion files.
+	sysroot_try_run_prefixed "${bindir}"/incus completion bash > incus.bash || die
+	sysroot_try_run_prefixed "${bindir}"/incus completion fish > incus.fish || die
+	sysroot_try_run_prefixed "${bindir}"/incus completion zsh > incus.zsh || die
 }
 
 src_test() {
@@ -187,11 +194,6 @@ src_test() {
 }
 
 src_install() {
-	export GOPATH="${S}/_dist"
-
-	export GOHOSTARCH=$(go-env_goarch "${CBUILD}")
-	local bindir=$(incus_get_bindir "${GOHOSTARCH}")
-
 	newsbin "${FILESDIR}"/incus-startup-0.4.sh incus-startup
 
 	# Admin tools
@@ -207,14 +209,14 @@ src_install() {
 	# VM Agents
 	if use amd64 ; then
 		exeinto /usr/libexec/incus/agents
-		doexe ${bindir}/incus-agent.linux.x86_64
-		doexe ${bindir}/incus-agent.linux.i686
-		doexe ${bindir}/incus-agent.windows.x86_64
-		doexe ${bindir}/incus-agent.windows.i686
+		doexe ${agentbindir}/incus-agent.linux.x86_64
+		doexe ${agentbindir}/incus-agent.linux.i686
+		doexe ${agentbindir}/incus-agent.windows.x86_64
+		doexe ${agentbindir}/incus-agent.windows.i686
 	elif use arm64 ; then
 		exeinto /usr/libexec/incus/agents
-		doexe ${bindir}/incus-agent.linux.aarch64
-		doexe ${bindir}/incus-agent.windows.aarch64
+		doexe ${agentbindir}/incus-agent.linux.aarch64
+		doexe ${agentbindir}/incus-agent.windows.aarch64
 	fi
 
 	# fuidshift, should be moved under admin tools at some point
@@ -232,15 +234,10 @@ src_install() {
 	systemd_newunit "${FILESDIR}"/incus-user-0.4.service incus-user.service
 	systemd_newunit "${FILESDIR}"/incus-user-0.4.socket incus-user.socket
 
-	if ! tc-is-cross-compiler; then
-		# Generate and install shell completion files.
-		mkdir -p "${D}"/usr/share/{bash-completion/completions/,fish/vendor_completions.d/,zsh/site-functions/} || die
-		"${bindir}"/incus completion bash > "${D}"/usr/share/bash-completion/completions/incus || die
-		"${bindir}"/incus completion fish > "${D}"/usr/share/fish/vendor_completions.d/incus.fish || die
-		"${bindir}"/incus completion zsh > "${D}"/usr/share/zsh/site-functions/_incus || die
-	else
-		ewarn "Shell completion files not installed! Install them manually with incus completion --help"
-	fi
+	# Install shell completion files.
+	[[ -s incus.bash ]] && newbashcomp incus.bash incus
+	[[ -s incus.fish ]] && dofishcomp incus.fish
+	[[ -s incus.zsh ]] && newzshcomp incus.zsh _incus
 
 	dodoc AUTHORS
 	dodoc -r doc/*
