@@ -4,7 +4,7 @@
 EAPI=8
 
 DISTUTILS_USE_PEP517=standalone
-PYTHON_COMPAT=( python3_{12..15} )
+PYTHON_COMPAT=( python3_{13..15} )
 inherit elisp-common distutils-r1 optfeature
 
 if [[ ${PV} == *9999 ]] ; then
@@ -29,16 +29,16 @@ if [[ ${PV} == *9999 ]]; then
 		~sys-apps/pkgcore-9999[${PYTHON_USEDEP}]"
 else
 	RDEPEND="
-		>=dev-python/snakeoil-0.11.3[${PYTHON_USEDEP}]
-		>=sys-apps/pkgcore-0.12.37[${PYTHON_USEDEP}]"
+		>=dev-python/snakeoil-0.11.6[${PYTHON_USEDEP}]
+		>=sys-apps/pkgcore-0.12.48[${PYTHON_USEDEP}]"
 fi
 RDEPEND+="
 	app-arch/zstd
 	>=dev-libs/tree-sitter-bash-0.25.1[python,${PYTHON_USEDEP}]
 	dev-python/charset-normalizer[${PYTHON_USEDEP}]
 	dev-python/lxml[${PYTHON_USEDEP}]
-	dev-python/pathspec[${PYTHON_USEDEP}]
-	>=dev-python/tree-sitter-0.25.2[${PYTHON_USEDEP}]
+	>=dev-python/pathspec-1.0.0[${PYTHON_USEDEP}]
+	>=dev-python/tree-sitter-0.26.0[${PYTHON_USEDEP}]
 	emacs? (
 		>=app-editors/emacs-24.1:*
 		app-emacs/ebuild-mode
