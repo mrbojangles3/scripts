@@ -11,8 +11,8 @@ SRC_URI="https://www.kernel.org/pub/linux/utils/fs/xfs/${PN}/${P}.tar.xz"
 
 LICENSE="LGPL-2.1"
 SLOT="0"
-KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~mips ppc ppc64 ~riscv ~s390 ~sparc x86"
-IUSE="icu libedit nls selinux static-libs"
+KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~mips ppc ppc64 ~riscv ~s390 ~sparc ~x86"
+IUSE="icu libedit nls static-libs"
 
 RDEPEND="
 	dev-libs/inih
@@ -23,10 +23,13 @@ RDEPEND="
 "
 DEPEND="
 	${RDEPEND}
-	>=sys-kernel/linux-headers-6.11
+	>=sys-kernel/linux-headers-6.18
 "
 BDEPEND="nls? ( sys-devel/gettext )"
-RDEPEND+=" selinux? ( sec-policy/selinux-xfs )"
+
+PATCHES=(
+	"${FILESDIR}"/${P}-libxfs-remove-stale-xfs_trans_mod_sb.patch
+)
 
 src_prepare() {
 	default
@@ -71,6 +74,8 @@ src_configure() {
 		# The default value causes double 'lib'
 		--localstatedir="${EPREFIX}/var"
 		--with-crond-dir="${EPREFIX}/etc/cron.d"
+		# TODO: Write equivalent OpenRC init scripts for installed systemd units
+		# Possibly document timer equivalents too for cron
 		--with-systemd-unit-dir="$(systemd_get_systemunitdir)"
 		--with-udev-rule-dir="$(get_udevdir)/rules.d"
 		$(use_enable icu libicu)
