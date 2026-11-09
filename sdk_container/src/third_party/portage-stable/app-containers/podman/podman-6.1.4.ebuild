@@ -17,7 +17,7 @@ else
 	SRC_URI="https://github.com/podman-container-tools/podman/archive/v${PV/_rc/-rc}.tar.gz -> ${P}.tar.gz"
 	S="${WORKDIR}/${P/_rc/-rc}"
 	[[ ${PV} != *rc* ]] && \
-		KEYWORDS="~amd64 ~arm64 ~loong ~riscv"
+		KEYWORDS="amd64 arm64 ~loong ~riscv"
 fi
 
 # main pkg
@@ -49,7 +49,7 @@ DEPEND="${RDEPEND}"
 BDEPEND="
 	${PYTHON_DEPS}
 	dev-go/go-md2man
-	>=dev-lang/go-1.25.9
+	>=dev-lang/go-1.26.0
 "
 
 PATCHES=(
