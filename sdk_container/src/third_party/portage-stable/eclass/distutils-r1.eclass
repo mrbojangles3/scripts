@@ -251,7 +251,7 @@ _distutils_set_globals() {
 			;;
 		maturin)
 			bdep+='
-				>=dev-util/maturin-1.8.2[${PYTHON_USEDEP}]
+				>=dev-util/maturin-1.14.1[${PYTHON_USEDEP}]
 			'
 			;;
 		no)
@@ -1029,6 +1029,7 @@ distutils_pep517_install() {
 			local maturin_args=(
 				"${DISTUTILS_ARGS[@]}"
 				--auditwheel=skip # see bug #831171
+				--compression-method=stored
 				--jobs="$(get_makeopts_jobs)"
 				$(in_iuse debug && usex debug '--profile=dev' '')
 			)
@@ -1232,18 +1233,20 @@ _distutils-r1_find_best_wheel() {
 		whl_fn=${whl_fn%-*}
 		local python_tag=${whl_fn##*-}
 
-		# Verify whether the Python tag is compatible.  We should
+		# Verify that the tags we're getting are incrementing, to make
+		# sure the matching logic below won't break.  We should
 		# be running from the oldest to the newest Python version,
 		# so it should always hold.  We short-circuit py3 tag.
 		if [[ .${python_tag}. != *.py3.* ]]; then
-			[[ ${EPYTHON} != python3.* ]] &&
+			[[ ${EPYTHON} != python3.* && ${EPYTHON} != pypy3.* ]] &&
 				die "Update the python_tag check for ${EPYTHON}"
-			local minor=${EPYTHON#python3.}
+			local minor=${EPYTHON#py*3.}
 			minor=${minor%t}
 			local is_compatible=
 			while [[ ${minor} -ge 0 ]]; do
 				if [[
 					.${python_tag}. == *.cp3${minor}.* ||
+					.${python_tag}. == *.pp3${minor}.* ||
 					.${python_tag}. == *.py3${minor}.*
 				]]; then
 					is_compatible=1
