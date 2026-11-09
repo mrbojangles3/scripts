@@ -2,16 +2,15 @@
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
-MY_PV=${PV/_/-}
 
 inherit go-module linux-info optfeature systemd toolchain-funcs udev
 
-GIT_COMMIT=01f442b84d6a669c1e335b800d4670997cd5aa93
+GIT_COMMIT=a5b58c94d334674eae3a3207d4f05417643a90d0
 
 DESCRIPTION="The core functions you need to create Docker images and run Docker containers"
 HOMEPAGE="https://www.docker.com/"
-SRC_URI="https://github.com/moby/moby/archive/v${MY_PV}.tar.gz -> ${P}.tar.gz"
-S="${WORKDIR}/moby-${PV}"
+SRC_URI="https://github.com/moby/moby/archive/${PN}-v${PV/_/-}.tar.gz -> ${P}.tar.gz"
+S="${WORKDIR}/moby-${PN}-v${PV}"
 
 LICENSE="Apache-2.0"
 SLOT="0"
@@ -21,6 +20,7 @@ IUSE="apparmor btrfs +container-init cuda +overlay2 seccomp selinux systemd"
 DEPEND="
 	acct-group/docker
 	>=dev-db/sqlite-3.7.9:3
+	net-firewall/nftables:=
 	apparmor? ( sys-libs/libapparmor )
 	btrfs? ( >=sys-fs/btrfs-progs-3.16.1 )
 	seccomp? ( >=sys-libs/libseccomp-2.2.1 )
@@ -31,12 +31,11 @@ DEPEND="
 # https://github.com/moby/moby/blob/master/project/PACKAGERS.md#optional-dependencies
 RDEPEND="
 	${DEPEND}
-	>=net-firewall/iptables-1.4
 	sys-process/procps
 	>=dev-vcs/git-1.7
 	>=app-arch/xz-utils-4.9
-	>=app-containers/containerd-2.0.5[apparmor?,btrfs?,seccomp?]
-	>=app-containers/runc-1.2.5[apparmor?,seccomp?]
+	>=app-containers/containerd-2.2.0[apparmor?,btrfs?,seccomp?]
+	>=app-containers/runc-1.2.6[apparmor?,seccomp?]
 	!app-containers/docker-proxy
 	!<app-containers/docker-cli-${PV}
 	container-init? ( >=sys-process/tini-0.19.0[static] )
@@ -48,6 +47,7 @@ RDEPEND="
 BDEPEND="
 	dev-go/go-md2man
 	virtual/pkgconfig
+	>=dev-lang/go-1.26.8
 "
 # tests require running dockerd as root and downloading containers
 RESTRICT="installsources strip test"
@@ -70,6 +70,13 @@ pkg_setup() {
 		~POSIX_MQUEUE
 	"
 	WARNING_POSIX_MQUEUE="CONFIG_POSIX_MQUEUE: is required for bind-mounting /dev/mqueue into containers"
+
+	if kernel_is ge 6 17; then
+		CONFIG_CHECK+="
+			~IP_NF_IPTABLES_LEGACY
+			~NETFILTER_XTABLES_LEGACY
+		"
+	fi
 
 	if kernel_is lt 4 8; then
 		CONFIG_CHECK+="
@@ -290,8 +297,6 @@ src_install() {
 
 	systemd_dounit contrib/init/systemd/docker.{service,socket}
 
-	udev_dorules contrib/udev/*.rules
-
 	dodoc AUTHORS CONTRIBUTING.md NOTICE README.md
 	dodoc -r docs/*
 	doman man/man8/dockerd.8
@@ -327,8 +332,4 @@ pkg_postinst() {
 	optfeature "rootless mode support" sys-apps/rootlesskit
 	optfeature_header "for rootless mode you also need a network stack"
 	optfeature "rootless mode network stack" app-containers/slirp4netns
-}
-
-pkg_postrm() {
-	udev_reload
 }
