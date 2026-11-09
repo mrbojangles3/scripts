@@ -9,9 +9,10 @@ VERIFY_SIG_METHOD=sigstore
 WANT_LIBTOOL="none"
 
 inherit autotools check-reqs eapi9-ver flag-o-matic linux-info llvm-r2
-inherit multiprocessing pax-utils toolchain-funcs verify-sig
+inherit multiprocessing pax-utils python-utils-r1 toolchain-funcs
+inherit verify-sig
 
-MY_PV=${PV/_}
+MY_PV=${PV}
 MY_P="Python-${MY_PV%_p*}"
 PYVER=$(ver_cut 1-2)
 PATCHSET="python-gentoo-patches-${MY_PV}"
@@ -32,6 +33,9 @@ S="${WORKDIR}/${MY_P}"
 
 LICENSE="PSF-2"
 SLOT="${PYVER}"
+if [[ ${PV} != *_[abr]* ]]; then
+	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
+fi
 IUSE="
 	bluetooth build debug +ensurepip examples gdbm jit libedit +ncurses pgo
 	+readline +sqlite +ssl tail-call-interp test tk valgrind
@@ -626,6 +630,30 @@ src_install() {
 		-e "s:@PYDOC@:pydoc${PYVER}:" \
 		-i "${ED}/etc/conf.d/pydoc-${PYVER}" \
 		"${ED}/etc/init.d/pydoc-${PYVER}" || die "sed failed"
+
+	# python-exec wrapping support
+	local pymajor=${PYVER%.*}
+	local EPYTHON=python${PYVER}
+	local scriptdir=${D}$(python_get_scriptdir)
+	mkdir -p "${scriptdir}" || die
+	# python and pythonX
+	ln -s "../../../bin/${abiver}" "${scriptdir}/python${pymajor}" || die
+	ln -s "python${pymajor}" "${scriptdir}/python" || die
+	# python-config and pythonX-config
+	# note: we need to create a wrapper rather than symlinking it due
+	# to some random dirname(argv[0]) magic performed by python-config
+	cat > "${scriptdir}/python${pymajor}-config" <<-EOF || die
+		#!/bin/sh
+		exec "${abiver}-config" "\${@}"
+	EOF
+	chmod +x "${scriptdir}/python${pymajor}-config" || die
+	ln -s "python${pymajor}-config" "${scriptdir}/python-config" || die
+	# pydoc
+	ln -s "../../../bin/pydoc${PYVER}" "${scriptdir}/pydoc" || die
+	# idle
+	if use tk; then
+		ln -s "../../../bin/idle${PYVER}" "${scriptdir}/idle" || die
+	fi
 }
 
 pkg_postinst() {
