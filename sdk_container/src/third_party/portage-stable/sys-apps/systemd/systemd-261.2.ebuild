@@ -20,12 +20,12 @@ else
 	SRC_URI="https://github.com/systemd/${PN}/archive/refs/tags/v${MY_PV}.tar.gz -> ${MY_P}.tar.gz"
 
 	if [[ ${PV} != *rc* ]] ; then
-		KEYWORDS="~alpha amd64 ~arm arm64 ~hppa ~loong ~m68k ~mips ~ppc ppc64 ~riscv ~s390 ~sparc x86"
+		KEYWORDS="~alpha amd64 arm arm64 ~hppa ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 ~sparc x86"
 	fi
 fi
 
 inherit branding flag-o-matic linux-info meson-multilib optfeature pam python-single-r1
-inherit secureboot shell-completion systemd toolchain-funcs udev
+inherit secureboot shell-completion systemd toolchain-funcs udev xdg-utils
 
 DESCRIPTION="System and service manager for Linux"
 HOMEPAGE="https://systemd.io/"
@@ -551,6 +551,7 @@ pkg_preinst() {
 }
 
 pkg_postinst() {
+	xdg_mimeinfo_database_update
 	systemd_update_catalog
 
 	# Keep this here in case the database format changes so it gets updated
@@ -613,4 +614,8 @@ pkg_prerm() {
 	if [[ ! ${REPLACED_BY_VERSION} ]]; then
 		rm -f -v "${EROOT}"/var/lib/systemd/catalog/database
 	fi
+}
+
+pkg_postrm() {
+	xdg_mimeinfo_database_update
 }
