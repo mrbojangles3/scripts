@@ -13,10 +13,8 @@ QEMU_DOCS_VERSION=$(ver_cut 1-2).0
 # bug #830088
 QEMU_DOC_USEFLAG="+doc"
 
-PYTHON_COMPAT=( python3_{12..13} )
+PYTHON_COMPAT=( python3_13 )
 PYTHON_REQ_USE="ensurepip(-),ncurses,readline"
-
-FIRMWARE_ABI_VERSION="7.2.0"
 
 inherit eapi9-ver flag-o-matic linux-info toolchain-funcs python-r1 udev fcaps \
 		readme.gentoo-r1 pax-utils xdg-utils
@@ -227,7 +225,7 @@ SOFTMMU_TOOLS_DEPEND="
 		>=app-emulation/spice-protocol-0.14.0
 		>=app-emulation/spice-0.14.0[static-libs(+)]
 	)
-	ssh? ( >=net-libs/libssh-0.8.6[sftp,static-libs(+)] )
+	ssh? ( >=net-libs/libssh-0.8.6[static-libs(+)] )
 	udev? ( virtual/libudev:= )
 	usb? ( >=virtual/libusb-1-r2:1[static-libs(+)] )
 	usbredir? ( >=sys-apps/usbredir-0.6[static-libs(+)] )
@@ -239,13 +237,29 @@ SOFTMMU_TOOLS_DEPEND="
 	zstd? ( >=app-arch/zstd-1.4.0[static-libs(+)] )
 "
 
-EDK2_OVMF_VERSION="202202"
+#
+# With USE=+pin-upstream-blobs we pin firmware versions to known good
+# version in order to  minimize the frequency of disruptive changes. This
+# avoids unnecessary frustration on user side because changing the firmware
+# version can break resume of hibernated guest, inhibit live migrations,
+# and might have other unwanted consequences. For now, let us try to
+# synchronize firmware blobs with the ones bundled in upstream qemu. Simply
+# check the upstream git repository for any changes, for example:
+#   https://github.com/qemu/qemu/tree/v10.0.2/roms for the 10.0.2 release.
+#
+# When changing pinned firmware versions
+#  - create a separate ebuild with revision -r50
+#  - update the FIRMWARE_ABI_VERSION to the current package version
+#
+
+FIRMWARE_ABI_VERSION="10.0.2"
+EDK2_OVMF_VERSION="202408"
 SEABIOS_VERSION="1.16.3"
 
 X86_FIRMWARE_DEPEND="
 	pin-upstream-blobs? (
-		~sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}[qemu_softmmu_targets_x86_64(+)]
-		~sys-firmware/ipxe-1.21.1[binary,qemu]
+		=sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}*[qemu_softmmu_targets_x86_64(+)]
+		~sys-firmware/ipxe-1.21.1_p20230601[binary,qemu]
 		~sys-firmware/seabios-bin-${SEABIOS_VERSION}
 		~sys-firmware/sgabios-0.1_pre10[binary]
 	)
@@ -370,12 +384,12 @@ kernel module is loaded is to load it on boot.
 Please review /etc/conf.d/modules for how to load these.
 
 Make sure your user is in the 'kvm' group. Just run
-	$ gpasswd -a <USER> kvm
+	# gpasswd -a <USER> kvm
 then have <USER> re-login.
 
 For brand new installs, the default permissions on /dev/kvm might not let
 you access it.  You can tell udev to reset ownership/perms:
-	$ udevadm trigger -c add /dev/kvm
+	# udevadm trigger -c add /dev/kvm
 
 If you want to register binfmt handlers for qemu user targets:
 For openrc:
@@ -969,8 +983,7 @@ pkg_postinst() {
 		ewarn "This might break resume of hibernated guests (started with a different"
 		ewarn "firmware version) and live migration to/from qemu versions with different"
 		ewarn "firmware. Please (cold) restart all running guests. For functional"
-		ewarn "guest migration ensure that all"
-		ewarn "hosts run at least"
+		ewarn "guest migration ensure that all hosts run at least"
 		ewarn "	app-emulation/qemu-${FIRMWARE_ABI_VERSION}."
 	fi
 }
