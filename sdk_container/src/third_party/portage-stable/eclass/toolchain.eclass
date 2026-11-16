@@ -25,7 +25,8 @@ esac
 DESCRIPTION="The GNU Compiler Collection"
 HOMEPAGE="https://gcc.gnu.org/"
 
-inherit edo flag-o-matic gnuconfig libtool multilib pax-utils rust toolchain-funcs prefix
+inherit edo flag-o-matic gnuconfig libtool multilib multiprocessing
+inherit pax-utils rust toolchain-funcs prefix
 
 [[ -n ${TOOLCHAIN_HAS_TESTS} ]] && inherit python-any-r1
 
@@ -409,9 +410,14 @@ fi
 
 if tc_has_feature sanitize ; then
 	# libsanitizer relies on 'crypt.h' to be present
-	# on target. glibc user to provide it unconditionally.
+	# on target. glibc used to provide it unconditionally.
 	# Nowadays it's a standalone library: bug #802648
-	DEPEND+=" sanitize? ( virtual/libcrypt )"
+	DEPEND+="
+		sanitize? (
+			virtual/libcrypt
+			virtual/os-headers
+		)
+	"
 fi
 
 if tc_has_feature systemtap ; then
@@ -2464,9 +2470,13 @@ toolchain_src_test() {
 		# CFLAGS and so on are repeated here because of tests vs building test
 		# deps like libbacktrace.
 		#
+		# Explicit -jN for testsuite parallelisation, as it inspects MFLAGS
+		# for that, which breaks w/ jobservers (PR127807).
+		#
 		# TODO: Should we try pass in the regular user flags for the non-RUNTESTFLAGS
 		# instances below for building e.g. libbacktrace?
 		nonfatal emake -C "${WORKDIR}"/build -k "${GCC_TESTS_CHECK_TARGET}" \
+			-j$(get_makeopts_jobs) \
 			RUNTESTFLAGS=" \
 				${GCC_TESTS_RUNTESTFLAGS} \
 				CFLAGS_FOR_TARGET='${GCC_TESTS_CFLAGS_FOR_TARGET:-${GCC_TESTS_CFLAGS}}' \
