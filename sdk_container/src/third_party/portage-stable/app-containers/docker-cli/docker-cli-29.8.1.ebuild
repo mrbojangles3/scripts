@@ -3,22 +3,14 @@
 
 EAPI=8
 
-inherit shell-completion go-module
-MY_PV=${PV/_/-}
+inherit shell-completion go-env go-module toolchain-funcs
 
 # update this on every bump
-GIT_COMMIT=b8034c0ed70494a90c133461d145cd072d920d7c
-
-# To create the man pages tarball, run the following in the git source
-# directory:
-#git checkout ${PV}
-# make manpages
-# tar -acf ${P}-man.tar.xz man/man?
+GIT_COMMIT=4a63305d74332de5ceba7fcbccbc3cbb7412f5ba
 
 DESCRIPTION="the command line binary for docker"
 HOMEPAGE="https://www.docker.com/"
-SRC_URI="https://github.com/docker/cli/archive/v${MY_PV}.tar.gz -> ${P}.tar.gz"
-SRC_URI+=" https://dev.gentoo.org/~williamh/dist/${P}-man.tar.xz"
+SRC_URI="https://github.com/docker/cli/archive/v${PV/_/-}.tar.gz -> ${P}.tar.gz"
 S="${WORKDIR}/cli-${PV}"
 
 LICENSE="Apache-2.0"
@@ -27,36 +19,35 @@ KEYWORDS="amd64 ~arm arm64 ~loong ppc64 ~riscv ~x86"
 IUSE="selinux"
 
 RDEPEND="selinux? ( sec-policy/selinux-docker )"
+BDEPEND="
+	dev-go/go-md2man
+	>=dev-lang/go-1.26.3
+"
 
 RESTRICT="installsources strip test"
-
-src_unpack() {
-	default
-	cd "${S}"
-	ln -s vendor.mod go.mod
-	ln -s vendor.sum go.sum
-}
 
 src_prepare() {
 	default
 	sed -i 's@dockerd\?\.exe@@g' contrib/completion/bash/docker || die
+	ln -s vendor.mod go.mod || die
+	ln -s vendor.sum go.sum || die
 }
 
 src_compile() {
 	export DISABLE_WARN_OUTSIDE_CONTAINER=1
-	# setup CFLAGS and LDFLAGS for separate build target
-	# see https://github.com/tianon/docker-overlay/pull/10
-	CGO_CFLAGS+=" -I${ESYSROOT}/usr/include"
-	CGO_LDFLAGS+=" -L${ESYSROOT}/usr/$(get_libdir)"
-		emake \
-		VERSION="${PV}" \
-		GITCOMMIT="${GIT_COMMIT}" \
-		dynbinary
+
+	local myemakeargs=(
+		VERSION="${PV}"
+		GITCOMMIT="${GIT_COMMIT}"
+	)
+
+	emake "${myemakeargs[@]}" dynbinary
+	CGO_ENABLED=0 tc-env_build go-env_run emake "${myemakeargs[@]}" manpages
 }
 
 src_install() {
 	dobin build/docker
-	doman "${WORKDIR}"/man/man?/*
+	doman man/man?/*
 	dobashcomp contrib/completion/bash/docker
 	bashcomp_alias docker dockerd
 	dofishcomp contrib/completion/fish/docker.fish
