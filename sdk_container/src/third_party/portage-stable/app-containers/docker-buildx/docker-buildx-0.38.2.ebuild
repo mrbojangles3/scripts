@@ -13,17 +13,17 @@ if [[ ${PV} == 9999 ]]; then
 	EGIT_REPO_URI="https://github.com/docker/buildx.git"
 else
 	SRC_URI="https://github.com/docker/buildx/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
-	KEYWORDS="~amd64 ~arm ~arm64 ~ppc64 ~riscv ~x86"
+	KEYWORDS="amd64 ~arm arm64 ppc64 ~riscv ~x86"
 	S=${WORKDIR}/${P#docker-}
 fi
 
 LICENSE="Apache-2.0"
 # Dependent licenses
-LICENSE+=" Apache-2.0 BSD BSD-2 ISC MIT MPL-2.0"
+LICENSE+=" Apache-2.0 BSD BSD-2 ISC MIT MPL-2.0 Unicode-DFS-2016"
 SLOT="0"
 
 RDEPEND="app-containers/docker-cli"
-BDEPEND=">=dev-lang/go-1.25.5"
+BDEPEND=">=dev-lang/go-1.26.8"
 
 src_compile() {
 	local _buildx_r='github.com/docker/buildx'
@@ -42,11 +42,10 @@ src_compile() {
 
 src_test() {
 	# TestGit can't work in a source tarball; TestReadTargets fails seemingly due to parallelism.
-	if [[ ${PV} == 9999 ]]; then
-		ego test ./... -skip "TestReadTargets|TestIntegration"
-	else
-		ego test ./... -skip "TestGit|TestReadTargets|TestIntegration"
-	fi
+	# TestNormalizeHTTPHost expects Unicode 15 idna tables, go1.27 selects Unicode 17 ones.
+	local skip="TestReadTargets|TestIntegration|TestNormalizeHTTPHost"
+	[[ ${PV} != 9999 ]] && skip+="|TestGit"
+	ego test ./... -skip "${skip}"
 }
 
 src_install() {
