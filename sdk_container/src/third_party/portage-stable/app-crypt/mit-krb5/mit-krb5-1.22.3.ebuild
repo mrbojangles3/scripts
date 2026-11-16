@@ -3,7 +3,7 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{12..14} )
+PYTHON_COMPAT=( python3_{12..15} )
 inherit autotools flag-o-matic python-any-r1 systemd toolchain-funcs multilib-minimal
 
 MY_P="${P/mit-}"
@@ -42,7 +42,6 @@ BDEPEND="
 		amd64? ( dev-lang/yasm )
 		x86? ( dev-lang/yasm )
 	)
-	doc? ( virtual/latex-base )
 	test? ( dev-util/cmocka )
 	"
 RDEPEND="${DEPEND}
@@ -52,8 +51,8 @@ PATCHES=(
 	"${FILESDIR}/${PN}-1.12_warn_cflags.patch"
 	"${FILESDIR}/${PN}_dont_create_rundir.patch"
 	"${FILESDIR}/${PN}-1.18.2-krb5-config.patch"
-	"${FILESDIR}/${PN}-1.22-openssl-4.patch"
 	"${FILESDIR}/${PN}-1.22-socket-too-long.patch"
+	"${FILESDIR}/${PN}-1.22-check-pytests-dep.patch"
 )
 
 MULTILIB_CHOST_TOOLS=(
