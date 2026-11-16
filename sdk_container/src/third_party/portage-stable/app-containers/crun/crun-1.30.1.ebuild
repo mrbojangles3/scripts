@@ -3,9 +3,9 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{12..14} )
+PYTHON_COMPAT=( python3_{12..15} )
 
-inherit autotools libtool python-any-r1 flag-o-matic toolchain-funcs
+inherit autotools libtool linux-info python-any-r1 flag-o-matic toolchain-funcs
 
 DESCRIPTION="Fast and low-memory footprint OCI Container Runtime fully written in C"
 HOMEPAGE="https://github.com/containers/crun"
@@ -15,7 +15,7 @@ if [[ "${PV}" == *9999* ]]; then
 	EGIT_REPO_URI="https://github.com/containers/${PN}.git"
 else
 	SRC_URI="https://github.com/containers/${PN}/releases/download/${PV}/${P}.tar.gz"
-	KEYWORDS="amd64 ~arm arm64 ~loong ppc64 ~riscv"
+	KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc64 ~riscv"
 fi
 
 LICENSE="GPL-2+ LGPL-2.1+"
@@ -23,11 +23,15 @@ SLOT="0"
 IUSE="+bpf +caps criu +seccomp selinux systemd static-libs"
 
 DEPEND="
+	dev-libs/blake3
 	dev-libs/json-c:=
 	sys-kernel/linux-headers
 	caps? ( sys-libs/libcap )
 	criu? ( >=sys-process/criu-3.15 )
-	elibc_musl? ( sys-libs/error-standalone )
+	elibc_musl? (
+		sys-libs/argp-standalone
+		sys-libs/error-standalone
+	)
 	seccomp? ( sys-libs/libseccomp )
 	systemd? ( sys-apps/systemd:= )
 "
@@ -39,9 +43,34 @@ BDEPEND="
 	virtual/pkgconfig
 "
 
-PATCHES=(
-	"${FILESDIR}"/${P}-export-json_gen.patch
-)
+pkg_setup() {
+	CONFIG_CHECK="
+		~NAMESPACES
+		~NET_NS
+		~PID_NS
+		~IPC_NS
+		~UTS_NS
+		~USER_NS
+		~CGROUPS
+		~CGROUP_CPUACCT
+		~CGROUP_DEVICE
+		~CGROUP_FREEZER
+		~CGROUP_PIDS
+		~CGROUP_SCHED
+		~CPUSETS
+		~MEMCG
+		~KEYS
+		~POSIX_MQUEUE
+	"
+
+	use bpf && CONFIG_CHECK+=" ~BPF_SYSCALL ~CGROUP_BPF"
+	use criu && CONFIG_CHECK+=" ~CHECKPOINT_RESTORE"
+	use seccomp && CONFIG_CHECK+=" ~SECCOMP ~SECCOMP_FILTER"
+	use selinux && CONFIG_CHECK+=" ~SECURITY_SELINUX"
+
+	linux-info_pkg_setup
+	python-any-r1_pkg_setup
+}
 
 src_prepare() {
 	default
@@ -56,6 +85,7 @@ src_configure() {
 	fi
 	local myeconfargs=(
 		--cache-file="${S}"/config.cache
+		--enable-embedded-blake3=no
 		$(use_enable bpf)
 		$(use_enable caps)
 		$(use_enable criu)
