@@ -54,7 +54,7 @@ else
 			sec-keys/openpgp-keys-unifont
 		)
 	"
-	KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~sparc ~x86"
+	KEYWORDS="amd64 arm arm64 ~loong ppc ppc64 ~riscv ~sparc x86"
 fi
 
 DEJAVU_VER=2.37
@@ -140,6 +140,10 @@ QA_EXECSTACK="usr/bin/grub-emu* usr/lib/grub/*"
 QA_PRESTRIPPED="usr/lib/grub/.*"
 QA_MULTILIB_PATHS="usr/lib/grub/.*"
 QA_WX_LOAD="usr/lib/grub/*"
+
+PATCHES=(
+	"${FILESDIR}/grub-2.16-revert-arm64-limit-memory.patch"
+)
 
 pkg_setup() {
 	# skip python-any-r1_pkg_setup: python_setup is called in src_prepare
