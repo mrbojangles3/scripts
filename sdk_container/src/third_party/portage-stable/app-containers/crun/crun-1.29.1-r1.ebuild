@@ -3,7 +3,7 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{12..14} )
+PYTHON_COMPAT=( python3_{12..15} )
 
 inherit autotools libtool python-any-r1 flag-o-matic toolchain-funcs
 
@@ -23,6 +23,7 @@ SLOT="0"
 IUSE="+bpf +caps criu +seccomp selinux systemd static-libs"
 
 DEPEND="
+	dev-libs/blake3
 	dev-libs/json-c:=
 	sys-kernel/linux-headers
 	caps? ( sys-libs/libcap )
@@ -39,10 +40,6 @@ BDEPEND="
 	virtual/pkgconfig
 "
 
-PATCHES=(
-	"${FILESDIR}"/${P}-export-json_gen.patch
-)
-
 src_prepare() {
 	default
 	elibtoolize
@@ -56,6 +53,7 @@ src_configure() {
 	fi
 	local myeconfargs=(
 		--cache-file="${S}"/config.cache
+		--enable-embedded-blake3=no
 		$(use_enable bpf)
 		$(use_enable caps)
 		$(use_enable criu)
