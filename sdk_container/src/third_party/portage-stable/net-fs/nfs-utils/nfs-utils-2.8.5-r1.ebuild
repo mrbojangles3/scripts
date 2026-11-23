@@ -1,4 +1,4 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -19,7 +19,7 @@ fi
 
 LICENSE="GPL-2"
 SLOT="0"
-IUSE="caps junction kerberos ldap +libmount +nfsv3 +nfsv4 sasl selinux tcpd +uuid"
+IUSE="caps junction kerberos ldap +libmount nfsdctl +nfsv3 +nfsv4 sasl selinux tcpd +uuid"
 REQUIRED_USE="|| ( nfsv3 nfsv4 ) kerberos? ( nfsv4 )"
 # bug #315573
 RESTRICT="test"
@@ -43,6 +43,10 @@ COMMON_DEPEND="
 		)
 	)
 	libmount? ( sys-apps/util-linux )
+	nfsdctl? (
+		>=dev-libs/libnl-3.1:3
+		sys-libs/readline:=
+	)
 	nfsv3? ( >=net-nds/rpcbind-0.2.4 )
 	nfsv4? (
 		>=sys-apps/keyutils-1.5.9:=
@@ -72,8 +76,7 @@ BDEPEND="
 PATCHES=(
 	"${FILESDIR}"/${PN}-2.5.2-no-werror.patch
 	"${FILESDIR}"/${PN}-udev-sysctl.patch
-	"${FILESDIR}"/${P}-includes.patch
-	"${FILESDIR}"/${P}-C99-inline.patch
+	"${FILESDIR}"/${PN}-2.6.4-C99-inline.patch
 )
 
 pkg_setup() {
@@ -81,7 +84,7 @@ pkg_setup() {
 
 	if use nfsv4 && linux_config_exists && ! linux_chkconfig_present CRYPTO_MD5 ; then
 		ewarn "Your NFS server will be unable to track clients across server restarts!"
-		ewarn "Please enable ${HILITE}CONFIG_CRYPTO_MD5${NORMAL} in your kernel to"
+		ewarn "Please enable CONFIG_CRYPTO_MD5 in your kernel to"
 		ewarn "support the legacy, in-kernel client tracker."
 	fi
 }
@@ -121,12 +124,14 @@ src_configure() {
 		$(use_enable kerberos svcgss)
 		$(use_enable ldap)
 		$(use_enable libmount libmount-mount)
+		$(use_enable nfsdctl)
 		$(use_enable nfsv4)
+		$(use_enable nfsv4 blkmapd)
 		$(use_enable nfsv4 nfsdcld)
 		$(use_enable nfsv4 nfsdcltrack)
-		$(use_enable nfsv4 nfsv41)
 		$(use_enable nfsv4 nfsv4server)
 		$(use_enable uuid)
+		$(use_with kerberos krb5 "${ESYSROOT}"/usr)
 		$(use_with tcpd tcp-wrappers)
 	)
 	econf "${myeconfargs[@]}"
@@ -180,6 +185,10 @@ src_install() {
 	for f in nfs nfsclient rpc.statd "${list[@]}" ; do
 		sed "${sedexp[@]}" "${FILESDIR}/${f}.initd" > "${T}/init.d/${f}" || die
 		doinitd "${T}/init.d/${f}"
+	done
+
+	for f in nfs nfsclient ; do
+		newconfd "${FILESDIR}"/${f}.confd ${f}
 	done
 
 	local systemd_systemunitdir="$(systemd_get_systemunitdir)"
