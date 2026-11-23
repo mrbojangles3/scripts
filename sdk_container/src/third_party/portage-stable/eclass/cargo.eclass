@@ -21,7 +21,7 @@ if [[ -z ${_CARGO_ECLASS} ]]; then
 _CARGO_ECLASS=1
 
 if [[ -n ${RUST_NEEDS_LLVM} ]]; then
-	inherit llvm-r1
+	inherit llvm-r2
 fi
 
 if [[ -n ${CARGO_OPTIONAL} ]]; then
@@ -518,10 +518,10 @@ cargo_update_crates () {
 	cargo_env "${@}" || die "Failed to update crates"
 }
 
-# @FUNCTION: cargo_src_unpack
+# @FUNCTION: cargo_crate_unpack
 # @DESCRIPTION:
-# Unpacks the package and the cargo registry.
-cargo_src_unpack() {
+# Unpack the *.crate files from ${A}.
+cargo_crate_unpack() {
 	debug-print-function ${FUNCNAME} "$@"
 
 	mkdir -p "${ECARGO_VENDOR}" "${S}" || die
@@ -532,9 +532,6 @@ cargo_src_unpack() {
 		case "${archive}" in
 			*.crate)
 				crates+=( "${archive}" )
-				;;
-			*)
-				unpack "${archive}"
 				;;
 		esac
 	done
@@ -572,7 +569,27 @@ cargo_src_unpack() {
 			eqawarn "'pycargoebuild --crate-tarball' to create one."
 		fi
 	fi
+}
 
+# @FUNCTION: cargo_src_unpack
+# @DESCRIPTION:
+# Unpacks the package and the cargo registry.
+cargo_src_unpack() {
+	debug-print-function ${FUNCNAME} "$@"
+
+	mkdir -p "${ECARGO_VENDOR}" "${S}" || die
+
+	local archive
+	for archive in ${A}; do
+		case "${archive}" in
+			*.crate)
+				;;
+			*)
+				unpack "${archive}"
+				;;
+		esac
+	done
+	cargo_crate_unpack
 	cargo_gen_config
 }
 
@@ -620,8 +637,6 @@ cargo_live_src_unpack() {
 		umask "${EVCS_UMASK}" || die "Bad options to umask: ${EVCS_UMASK}"
 	fi
 
-	pushd "${S}" > /dev/null || die
-
 	# Respect user settings before cargo_gen_config is called.
 	if [[ ! ${CARGO_TERM_COLOR} ]]; then
 		[[ "${NOCOLOR}" = true || "${NOCOLOR}" = yes ]] && export CARGO_TERM_COLOR=never
@@ -651,8 +666,6 @@ cargo_live_src_unpack() {
 	if [[ -d ${ECARGO_REGISTRY_DIR}/git && ! -L "${ECARGO_HOME}/git" ]]; then
 		ln -sv "${ECARGO_REGISTRY_DIR}/git" "${ECARGO_HOME}/git" || die
 	fi
-
-	popd > /dev/null || die
 
 	# Restore settings if needed.
 	[[ ${unset_color} ]] && unset CARGO_TERM_COLOR

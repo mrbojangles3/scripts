@@ -16,7 +16,7 @@ if [[ ${PV} == *9999 ]] ; then
 
 	REQUIRED_USE="${PYTHON_REQUIRED_USE}"
 else
-	VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/andrewtridgell.asc
+	VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/zendodd.asc
 	inherit verify-sig
 
 	if [[ -n ${RSYNC_NEEDS_AUTOCONF} ]] ; then
@@ -50,9 +50,10 @@ else
 	fi
 fi
 
-LICENSE="GPL-3"
+# GPL-2 for init script
+LICENSE="GPL-3 GPL-3+ GPL-2"
 SLOT="0"
-IUSE="acl examples iconv lz4 rrsync ssl stunnel system-zlib test xattr +xxhash zstd"
+IUSE="acl examples iconv idn lz4 rrsync ssl stunnel system-zlib test xattr +xxhash zstd"
 RESTRICT+=" !test? ( test )"
 REQUIRED_USE+="
 	examples? ( ${PYTHON_REQUIRED_USE} )
@@ -67,6 +68,8 @@ RDEPEND="
 		${PYTHON_DEPS}
 		dev-lang/perl
 	)
+	iconv? ( virtual/libiconv )
+	idn? ( net-dns/libidn2:= )
 	lz4? ( app-arch/lz4:= )
 	rrsync? (
 		${PYTHON_DEPS}
@@ -78,7 +81,7 @@ RDEPEND="
 	system-zlib? ( virtual/zlib:= )
 	xxhash? ( >=dev-libs/xxhash-0.8 )
 	zstd? ( >=app-arch/zstd-1.4:= )
-	iconv? ( virtual/libiconv )"
+"
 DEPEND="${RDEPEND}"
 BDEPEND="
 	examples? ( ${PYTHON_DEPS} )
@@ -94,7 +97,7 @@ if [[ ${PV} == *9999 ]] ; then
 		')
 	"
 else
-	BDEPEND+=" verify-sig? ( sec-keys/openpgp-keys-andrewtridgell )"
+	BDEPEND+=" verify-sig? ( sec-keys/openpgp-keys-zendodd )"
 fi
 
 pkg_setup() {
@@ -135,6 +138,7 @@ src_configure() {
 		--enable-ipv6
 		$(use_enable acl acl-support)
 		$(use_enable iconv)
+		$(use_enable idn)
 		$(use_enable lz4)
 		$(use_with rrsync)
 		$(use_enable ssl openssl)
@@ -155,7 +159,7 @@ src_install() {
 	emake DESTDIR="${D}" install
 
 	newconfd "${FILESDIR}"/rsyncd.conf.d rsyncd
-	newinitd "${FILESDIR}"/rsyncd.init.d-r1 rsyncd
+	newinitd "${FILESDIR}"/rsyncd.init.d-r2 rsyncd
 
 	dodoc NEWS.md README.md TODO tech_report.tex
 
@@ -163,7 +167,7 @@ src_install() {
 	newins "${FILESDIR}"/rsyncd.conf-3.2.7-r5 rsyncd.conf
 
 	insinto /etc/logrotate.d
-	newins "${FILESDIR}"/rsyncd.logrotate rsyncd
+	newins "${FILESDIR}"/rsyncd.logrotate-r1 rsyncd
 
 	insinto /etc/xinetd.d
 	newins "${FILESDIR}"/rsyncd.xinetd-3.0.9-r1 rsyncd
@@ -188,6 +192,8 @@ src_install() {
 	eprefixify "${ED}"/etc/{,xinetd.d}/rsyncd*
 
 	systemd_newunit packaging/systemd/rsync.service rsyncd.service
+	systemd_newunit packaging/systemd/rsync@.service 'rsyncd@.service'
+	systemd_newunit packaging/systemd/rsync.socket rsyncd.socket
 }
 
 pkg_postinst() {
