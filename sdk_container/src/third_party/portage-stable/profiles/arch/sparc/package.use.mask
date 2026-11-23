@@ -1,6 +1,27 @@
 # Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
+# Mike Gilbert <floppym@gentoo.org> (2026-11-07)
+# dev-ruby/asciidoctor is not keyworded.
+sys-kernel/dracut asciidoctor
+
+# Sam James <sam@gentoo.org> (2026-10-11)
+# Needed here specifically while we have a general mask for the target
+# on sparc.
+dev-python/python-tests -python_targets_python3_15
+dev-python/python-tests -python_targets_python3_15t
+dev-lang/python-exec -python_targets_python3_15
+dev-lang/python-exec -python_targets_python3_15t
+
+# Lukas Schmelting <lschmelting@posteo.com> (2026-09-10)
+# dev-util/bpftool not keyworded here
+net-misc/networkmanager clat
+
+# David Seifert <soap@gentoo.org> (2026-09-07)
+# sci-libs/libaec is not keyworded here, and >=sci-libs/hdf5-2.2.0
+# requires it directly instead of via virtual/szip
+>=sci-libs/hdf5-2.2.0 szip
+
 # James Le Cuirot <chewi@gentoo.org> (2026-09-05)
 # VIS is a sparc-specific SIMD optimisation.
 media-libs/libggi -vis
@@ -349,10 +370,6 @@ dev-libs/libpcre2 jit
 # Unkeyworded dependencies
 dev-util/diffoscope opendocument pascal pdf R
 
-# Matt Turner <mattst88@gentoo.org> (2022-12-16)
-# gui-libs/gtk is not keyworded here
-app-crypt/gcr:4 gtk
-
 # Sam James <sam@gentoo.org> (2022-11-24)
 # Pulls in gjs which is broken on sparc, bug #882071
 dev-libs/libpeas javascript
@@ -495,10 +512,6 @@ dev-embedded/urjtag ftd2xx
 # Mart Raudsepp <leio@gentoo.org> (2020-11-26)
 # dev-libs/libmanette not keyworded, limited usefulness
 net-libs/webkit-gtk gamepad
-
-# Joonas Niilola <juippis@gentoo.org> (2020-11-16)
-# app-text/libgepub not yet keyworded on this arch. #754762
-xfce-base/tumbler epub
 
 # Arfrever Frehtes Taifersar Arahesis <arfrever.fta@gmail.com> (2020-10-14)
 # app-i18n/fcitx:4 not keyworded.
