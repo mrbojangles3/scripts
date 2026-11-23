@@ -19,11 +19,11 @@ fi
 
 LICENSE="Apache-2.0"
 # Dependent licenses
-LICENSE+=" Apache-2.0 BSD BSD-2 ISC MIT MPL-2.0"
+LICENSE+=" Apache-2.0 BSD BSD-2 ISC MIT MPL-2.0 Unicode-DFS-2016"
 SLOT="0"
 
 RDEPEND="app-containers/docker-cli"
-BDEPEND=">=dev-lang/go-1.25.5"
+BDEPEND=">=dev-lang/go-1.26.8"
 
 src_compile() {
 	local _buildx_r='github.com/docker/buildx'
@@ -42,11 +42,9 @@ src_compile() {
 
 src_test() {
 	# TestGit can't work in a source tarball; TestReadTargets fails seemingly due to parallelism.
-	if [[ ${PV} == 9999 ]]; then
-		ego test ./... -skip "TestReadTargets|TestIntegration"
-	else
-		ego test ./... -skip "TestGit|TestReadTargets|TestIntegration"
-	fi
+	local skip="TestReadTargets|TestIntegration"
+	[[ ${PV} != 9999 ]] && skip+="|TestGit"
+	ego test ./... -skip "${skip}"
 }
 
 src_install() {
