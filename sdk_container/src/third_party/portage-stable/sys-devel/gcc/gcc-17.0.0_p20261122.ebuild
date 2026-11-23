@@ -7,11 +7,11 @@ EAPI=8
 # https://wiki.gentoo.org/wiki/Project:Toolchain/sys-devel/gcc
 
 TOOLCHAIN_HAS_TESTS=1
-PATCH_GCC_VER="14.3.0"
-PATCH_VER="6"
-MUSL_VER="2"
-MUSL_GCC_VER="14.3.0"
-PYTHON_COMPAT=( python3_{11..14} )
+PATCH_GCC_VER="17.0.0"
+PATCH_VER="23"
+MUSL_GCC_VER="17.0.0"
+MUSL_VER="1"
+PYTHON_COMPAT=( python3_{12..15} )
 
 if [[ -n ${TOOLCHAIN_GCC_RC} ]] ; then
 	# Cheesy hack for RCs
@@ -26,10 +26,10 @@ inherit toolchain
 
 if tc_is_live ; then
 	# Needs to be after inherit (for now?), bug #830908
-	EGIT_BRANCH=releases/gcc-$(ver_cut 1)
+	EGIT_BRANCH=master
 elif [[ -z ${TOOLCHAIN_USE_GIT_PATCHES} ]] ; then
-	# m68k doesnt build (ICE, bug 932733)
-	#KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
+	# Don't keyword live ebuilds
+	#KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
 	:;
 fi
 
@@ -41,7 +41,13 @@ if [[ ${CATEGORY} != cross-* ]] ; then
 	DEPEND="${RDEPEND}"
 fi
 
+PATCHES=(
+	"${FILESDIR}"/${PN}-13-fix-cross-fixincludes.patch
+)
+
 src_prepare() {
+	[[ ${CHOST} == m68k-* ]] && PATCHES+=( "${FILESDIR}"/${PN}-15-m68k-workaround.patch )
+
 	local p upstreamed_patches=(
 		# add them here
 	)
@@ -50,7 +56,4 @@ src_prepare() {
 	done
 
 	toolchain_src_prepare
-
-	eapply "${FILESDIR}"/${PN}-13-fix-cross-fixincludes.patch
-	eapply_user
 }

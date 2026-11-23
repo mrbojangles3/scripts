@@ -11,7 +11,7 @@ PATCH_GCC_VER="14.3.0"
 PATCH_VER="6"
 MUSL_VER="2"
 MUSL_GCC_VER="14.3.0"
-PYTHON_COMPAT=( python3_{11..14} )
+PYTHON_COMPAT=( python3_{12..15} )
 
 if [[ -n ${TOOLCHAIN_GCC_RC} ]] ; then
 	# Cheesy hack for RCs
@@ -29,7 +29,7 @@ if tc_is_live ; then
 	EGIT_BRANCH=releases/gcc-$(ver_cut 1)
 elif [[ -z ${TOOLCHAIN_USE_GIT_PATCHES} ]] ; then
 	# m68k doesnt build (ICE, bug 932733)
-	#KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
+	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86"
 	:;
 fi
 
@@ -41,6 +41,10 @@ if [[ ${CATEGORY} != cross-* ]] ; then
 	DEPEND="${RDEPEND}"
 fi
 
+PATCHES=(
+	"${FILESDIR}"/${PN}-13-fix-cross-fixincludes.patch
+)
+
 src_prepare() {
 	local p upstreamed_patches=(
 		# add them here
@@ -50,7 +54,4 @@ src_prepare() {
 	done
 
 	toolchain_src_prepare
-
-	eapply "${FILESDIR}"/${PN}-13-fix-cross-fixincludes.patch
-	eapply_user
 }
