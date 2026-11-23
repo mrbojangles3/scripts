@@ -3,7 +3,7 @@
 
 EAPI=8
 
-LLVM_COMPAT=( {18..22} )
+LLVM_COMPAT=( {20..23} )
 LLVM_OPTIONAL=1
 PYTHON_COMPAT=( python3_{12..14} python3_{13,14}t)
 inherit bash-completion-r1 estack flag-o-matic linux-info llvm-r2 toolchain-funcs python-single-r1
@@ -11,32 +11,38 @@ inherit bash-completion-r1 estack flag-o-matic linux-info llvm-r2 toolchain-func
 DESCRIPTION="Userland tools for Linux Performance Counters"
 HOMEPAGE="https://perfwiki.github.io/main/"
 
-LINUX_V="${PV:0:1}.x"
-if [[ ${PV} == *_rc* ]] ; then
-	LINUX_VER=$(ver_cut 1-2).$(($(ver_cut 3)-1))
-	PATCH_VERSION=$(ver_cut 1-3)
-	LINUX_PATCH=patch-${PV//_/-}.xz
-	SRC_URI="https://www.kernel.org/pub/linux/kernel/v${LINUX_V}/testing/${LINUX_PATCH}
-		https://www.kernel.org/pub/linux/kernel/v${LINUX_V}/testing/v${PATCH_VERSION}/${LINUX_PATCH}"
-elif [[ ${PV} == *.*.* ]] ; then
-	# stable-release series
-	LINUX_VER=$(ver_cut 1-2)
-	LINUX_PATCH=patch-${PV}.xz
-	SRC_URI="https://www.kernel.org/pub/linux/kernel/v${LINUX_V}/${LINUX_PATCH}"
+if [[ ${PV} =~ "9999" ]] ; then
+	EGIT_MIN_CLONE_TYPE=single
+	EGIT_REPO_URI="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
+	S_K="${WORKDIR}/${P}"
+	S="${S_K}/tools/perf"
+	inherit git-r3
 else
-	LINUX_VER=${PV}
+	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~x86"
+	LINUX_V="${PV:0:1}.x"
+	if [[ ${PV} == *_rc* ]] ; then
+		LINUX_VER=$(ver_cut 1-2).$(($(ver_cut 3)-1))
+		PATCH_VERSION=$(ver_cut 1-3)
+		LINUX_PATCH=patch-${PV//_/-}.xz
+		SRC_URI="https://www.kernel.org/pub/linux/kernel/v${LINUX_V}/testing/${LINUX_PATCH}
+			https://www.kernel.org/pub/linux/kernel/v${LINUX_V}/testing/v${PATCH_VERSION}/${LINUX_PATCH}"
+	elif [[ ${PV} == *.*.* ]] ; then
+		# stable-release series
+		LINUX_VER=$(ver_cut 1-2)
+		LINUX_PATCH=patch-${PV}.xz
+		SRC_URI="https://www.kernel.org/pub/linux/kernel/v${LINUX_V}/${LINUX_PATCH}"
+	else
+		LINUX_VER=${PV}
+	fi
+	LINUX_SOURCES="linux-${LINUX_VER}.tar.xz"
+	SRC_URI+=" https://www.kernel.org/pub/linux/kernel/v${LINUX_V}/${LINUX_SOURCES}"
+	S_K="${WORKDIR}/linux-${LINUX_VER}"
+	S="${S_K}/tools/perf"
 fi
-
-LINUX_SOURCES="linux-${LINUX_VER}.tar.xz"
-SRC_URI+=" https://www.kernel.org/pub/linux/kernel/v${LINUX_V}/${LINUX_SOURCES}"
-
-S_K="${WORKDIR}/linux-${LINUX_VER}"
-S="${S_K}/tools/perf"
 
 LICENSE="GPL-2"
 SLOT="0"
-KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~x86"
-IUSE="abi_mips_o32 abi_mips_n32 abi_mips_n64 babeltrace capstone big-endian bpf caps crypt debug gtk java libpfm +libtraceevent +libtracefs lzma numa perl +python +slang systemtap tcmalloc"
+IUSE="abi_mips_o32 abi_mips_n32 abi_mips_n64 babeltrace capstone big-endian bpf caps crypt debug gtk java libpfm +libtraceevent lzma numa perl +python rust slang systemtap tcmalloc"
 
 REQUIRED_USE="
 	${PYTHON_REQUIRED_USE}
@@ -59,10 +65,11 @@ BDEPEND="
 	app-text/sgml-common
 	app-text/xmlto
 	sys-process/time
+	rust? ( || ( dev-lang/rust dev-lang/rust-bin ) )
 "
 
 RDEPEND="
-	babeltrace? ( dev-util/babeltrace:0/1 )
+	babeltrace? ( dev-util/babeltrace:= )
 	bpf? (
 		dev-libs/libbpf
 		dev-util/bpftool
@@ -79,7 +86,6 @@ RDEPEND="
 	java? ( virtual/jre:* )
 	libpfm? ( dev-libs/libpfm:= )
 	libtraceevent? ( dev-libs/libtraceevent )
-	libtracefs? ( dev-libs/libtracefs )
 	lzma? ( app-arch/xz-utils )
 	numa? ( sys-process/numactl )
 	perl? ( dev-lang/perl:= )
@@ -137,6 +143,11 @@ pkg_setup() {
 # src_unpack and src_prepare are copied to dev-util/bpftool since
 # it's building from the same tarball, please keep it in sync with bpftool
 src_unpack() {
+	if [[ ${PV} =~ "9999" ]]; then
+		git-r3_src_unpack
+		return
+	fi
+
 	local paths=(
 		'arch/*/include/*' 'arch/*/lib/*' 'arch/*/tools/*' 'include/*'
 		'kernel/bpf/*' 'lib/*' 'scripts/*' 'tools/arch/*' 'tools/bpf/*'
@@ -192,7 +203,11 @@ src_prepare() {
 
 	# Avoid the call to make kernelversion
 	sed -i -e '/PERF-VERSION-GEN/d' Makefile.perf || die
-	echo "#define PERF_VERSION \"${PV}\"" > PERF-VERSION-FILE
+	if [[ ${PV} =~ "9999" ]]; then
+		echo "#define PERF_VERSION \"$(git -C "${S}" describe)\"" > PERF-VERSION-FILE
+	else
+		echo "#define PERF_VERSION \"${PV}\"" > PERF-VERSION-FILE
+	fi
 
 	# The code likes to compile local assembly files which lack ELF markings.
 	find -name '*.S' -exec sed -i '$a.section .note.GNU-stack,"",%progbits' {} +
@@ -267,6 +282,7 @@ perf_make() {
 		NO_LIBPYTHON=$(puse python)
 		NO_LIBTRACEEVENT=$(puse libtraceevent)
 		NO_LIBUNWIND=1
+		NO_RUST=$(puse rust)
 		NO_SDT=$(puse systemtap)
 		NO_SHELLCHECK=1
 		NO_SLANG=$(puse slang)
