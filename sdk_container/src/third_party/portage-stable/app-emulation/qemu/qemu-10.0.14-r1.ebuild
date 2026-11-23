@@ -13,7 +13,7 @@ QEMU_DOCS_VERSION=$(ver_cut 1-2).0
 # bug #830088
 QEMU_DOC_USEFLAG="+doc"
 
-PYTHON_COMPAT=( python3_{12..13} )
+PYTHON_COMPAT=( python3_{13..14} )
 PYTHON_REQ_USE="ensurepip(-),ncurses,readline"
 
 inherit eapi9-ver flag-o-matic linux-info toolchain-funcs python-r1 udev fcaps \
@@ -262,7 +262,7 @@ SEABIOS_VERSION="1.16.3"
 
 X86_FIRMWARE_DEPEND="
 	pin-upstream-blobs? (
-		~sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}[qemu_softmmu_targets_x86_64(+)]
+		=sys-firmware/edk2-bin-${EDK2_OVMF_VERSION}*[qemu_softmmu_targets_x86_64(+)]
 		~sys-firmware/ipxe-1.21.1_p20230601[binary,qemu]
 		~sys-firmware/seabios-bin-${SEABIOS_VERSION}
 		~sys-firmware/sgabios-0.1_pre10[binary]
@@ -514,9 +514,6 @@ src_prepare() {
 		dtrace='stap-dtrace'
 		EOF
 	fi
-
-	# Verbose builds
-	MAKEOPTS+=" V=1"
 
 	# Remove bundled modules
 	rm -r roms/*/ || die
@@ -781,23 +778,23 @@ src_configure() {
 src_compile() {
 	if [[ -n ${user_targets} ]]; then
 		cd "${S}/user-build" || die
-		default
+		emake V=1
 	fi
 
 	if [[ -n ${softmmu_targets} ]]; then
 		cd "${S}/softmmu-build" || die
-		default
+		emake V=1
 	fi
 
 	cd "${S}/tools-build" || die
-	default
+	emake V=1
 }
 
 src_test() {
 	if [[ -n ${softmmu_targets} ]]; then
 		cd "${S}/softmmu-build" || die
 		pax-mark m */qemu-system-* #515550
-		emake check
+		emake V=1 check
 	fi
 }
 
